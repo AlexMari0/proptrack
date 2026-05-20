@@ -1,0 +1,59 @@
+# ─── OS & Editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE / Editor config (project-agnostic; keep team-specific settings local)
+/.idea/
+/.vscode/
+/.zed/
+/.nova/
+/.cursor/
+/.codex/
+*.code-workspace
+
+# ─── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Laravel / PHP (proptrack-api) ────────────────────────────────────────────
+proptrack-api/vendor/
+proptrack-api/node_modules/
+proptrack-api/public/build/
+proptrack-api/public/hot/
+proptrack-api/public/storage/
+proptrack-api/storage/*.key
+proptrack-api/storage/pail/
+proptrack-api/storage/logs/*.log
+proptrack-api/storage/app/contracts/        # generated PDF files
+proptrack-api/bootstrap/cache/*.php
+proptrack-api/auth.json
+proptrack-api/_ide_helper.php
+proptrack-api/.phpactor.json
+proptrack-api/.phpunit.cache/
+proptrack-api/.phpunit.result.cache
+proptrack-api/Homestead.json
+proptrack-api/Homestead.yaml
+
+# ─── Vue / Node (proptrack-web) ───────────────────────────────────────────────
+proptrack-web/node_modules/
+proptrack-web/dist/
+proptrack-web/dist-ssr/
+proptrack-web/*.local
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+proptrack-api/coverage/
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.local
