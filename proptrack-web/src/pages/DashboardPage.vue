@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
+import NavbarNotificationBell from '@/components/layout/NavbarNotificationBell.vue'
 
 const { authStore, logout, fetchProfile, loading } = useAuth()
 
@@ -35,6 +36,9 @@ onMounted(async () => {
         </div>
 
         <div class="flex items-center gap-4">
+          <!-- Notification Bell -->
+          <NavbarNotificationBell />
+
           <div class="hidden sm:flex flex-col items-end">
             <span class="text-sm font-semibold text-slate-200">{{ authStore.user?.name || 'Loading...' }}</span>
             <span class="text-xs text-slate-400 capitalize">{{ authStore.user?.roles?.[0] || 'User' }}</span>

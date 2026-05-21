@@ -31,4 +31,17 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the phone number for Fonnte WhatsApp notifications.
+     */
+    public function routeNotificationForFonnte(): ?string
+    {
+        if ($this->hasRole('tenant')) {
+            $tenant = \App\Models\Tenant::where('email', $this->email)->first();
+            return $tenant?->phone;
+        }
+        return null;
+    }
 }
+

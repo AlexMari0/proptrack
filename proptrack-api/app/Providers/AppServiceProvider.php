@@ -4,6 +4,10 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
+use Illuminate\Support\Facades\Event;
+use Illuminate\Notifications\Events\NotificationSent as LaravelNotificationSent;
+use App\Listeners\SendRealtimeNotification;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -19,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Event::listen(
+            LaravelNotificationSent::class,
+            SendRealtimeNotification::class
+        );
     }
 }

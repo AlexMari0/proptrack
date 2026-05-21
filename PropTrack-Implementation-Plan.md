@@ -604,21 +604,21 @@ POST   /api/v1/tickets/{id}/comments  ← tambah komentar
 ```
 
 **Task List — Backend:**
-- [ ] Migration: `tickets`, `ticket_comments` table
-- [ ] `Ticket` model dengan status: `open`, `in_progress`, `resolved`, `closed`
-- [ ] `TicketController`, `TicketService`
-- [ ] `TicketPolicy` — tenant hanya bisa lihat tiket miliknya
+- [x] Migration: `tickets`, `ticket_comments` table
+- [x] `Ticket` model dengan status: `open`, `in_progress`, `resolved`, `closed`
+- [x] `TicketController`, `TicketService`
+- [x] `TicketPolicy` — tenant hanya bisa lihat tiket miliknya
 
 **Task List — Frontend:**
-- [ ] `pages/tickets/TicketListPage.vue`
-- [ ] `pages/tickets/TicketDetailPage.vue` — dengan thread komentar
-- [ ] `pages/tickets/TicketFormPage.vue`
+- [x] `pages/tickets/TicketListPage.vue`
+- [x] `pages/tickets/TicketDetailPage.vue` — dengan thread komentar
+- [x] `pages/tickets/TicketFormPage.vue`
 
 **Kriteria Selesai:**
-- [ ] Tenant bisa membuat tiket baru
-- [ ] Agent/admin bisa mengubah status tiket
-- [ ] Tenant hanya bisa melihat tiket miliknya → `403` jika coba akses tiket orang lain
-- [ ] Vue: thread komentar tampil secara kronologis
+- [x] Tenant bisa membuat tiket baru
+- [x] Agent/admin bisa mengubah status tiket
+- [x] Tenant hanya bisa melihat tiket miliknya → `403` jika coba akses tiket orang lain
+- [x] Vue: thread komentar tampil secara kronologis
 
 ---
 

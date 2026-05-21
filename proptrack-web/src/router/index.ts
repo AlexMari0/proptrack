@@ -102,6 +102,52 @@ const router = createRouter({
       component: () => import('@/pages/contracts/ContractFormPage.vue'),
       meta: { requiresAuth: true },
     },
+    // ─── Invoices ─────────────────────────────────────────────────────────────
+    {
+      path: '/invoices',
+      name: 'invoices',
+      component: () => import('@/pages/invoices/InvoiceListPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/invoices/:id',
+      name: 'invoice-detail',
+      component: () => import('@/pages/invoices/InvoiceDetailPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    // ─── Payments ─────────────────────────────────────────────────────────────
+    {
+      path: '/payments/:id',
+      name: 'payment',
+      component: () => import('@/pages/payments/PaymentPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    // ─── Reports ──────────────────────────────────────────────────────────────
+    {
+      path: '/reports/financial',
+      name: 'financial-report',
+      component: () => import('@/pages/reports/FinancialReportPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    // ─── Complaint Tickets ───────────────────────────────────────────────────
+    {
+      path: '/tickets',
+      name: 'tickets',
+      component: () => import('@/pages/tickets/TicketListPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tickets/create',
+      name: 'ticket-create',
+      component: () => import('@/pages/tickets/TicketFormPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tickets/:id',
+      name: 'ticket-detail',
+      component: () => import('@/pages/tickets/TicketDetailPage.vue'),
+      meta: { requiresAuth: true },
+    },
     // Fallback route
     {
       path: '/:pathMatch(.*)*',
