@@ -111,7 +111,7 @@ function roleBadgeColor(role: string): string {
         <!-- Ticket info card -->
         <div class="card" style="margin-bottom:16px">
           <div class="ticket-header">
-            <span style="font-family:monospace;font-size:0.78rem;font-weight:700;color:var(--amber)">{{ selectedTicket.ticket_number }}</span>
+            <span style="font-family:monospace;font-size:0.78rem;font-weight:700;color:var(--color-primary)">{{ selectedTicket.ticket_number }}</span>
             <span :class="statusBadge(selectedTicket.status)" style="text-transform:capitalize">{{ selectedTicket.status.replace('_', ' ') }}</span>
           </div>
           <h1 class="ticket-title">{{ selectedTicket.title }}</h1>
@@ -204,7 +204,7 @@ function roleBadgeColor(role: string): string {
             <div v-if="commentError" class="alert alert--error" style="margin-bottom:8px">{{ commentError }}</div>
             <form @submit.prevent="handleAddComment" style="display:flex;gap:10px;align-items:flex-start">
               <textarea v-model="newComment" rows="2" class="form-textarea" placeholder="Type a response or update…" :disabled="isSubmitting" style="flex:1" />
-              <button type="submit" class="btn-primary" :disabled="isSubmitting || !newComment.trim()">
+              <button type="submit" class="btn-send" :disabled="isSubmitting">
                 Send
               </button>
             </form>
@@ -271,4 +271,34 @@ function roleBadgeColor(role: string): string {
 .role-chip--tenant  { background: rgba(34,197,94,0.12);   color: #16a34a; }
 .role-chip--owner   { background: rgba(234,179,8,0.15);   color: #a16207; }
 .role-chip--agent   { background: rgba(99,102,241,0.12);  color: #4338ca; }
+
+.btn-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Outfit', var(--font-sans);
+  letter-spacing: -0.01em;
+  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-send:hover {
+  background: var(--color-primary-hover, #4f46e5);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+.btn-send:active {
+  transform: scale(0.97);
+}
+.btn-send:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
 </style>

@@ -65,6 +65,18 @@ test('tenant role user cannot list tenants', function () {
     $this->actingAs($user)->getJson('/api/v1/tenants')->assertStatus(403);
 });
 
+test('agent role user can list tenants', function () {
+    $user = User::factory()->create();
+    $user->assignRole('agent');
+    createTenant();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/tenants')
+        ->assertStatus(200)
+        ->assertJsonStructure(['data', 'meta' => ['total', 'current_page', 'last_page', 'per_page'], 'message'])
+        ->assertJsonPath('meta.total', 1);
+});
+
 // ─── Index ─────────────────────────────────────────────────────────────────────
 
 test('owner can list tenants', function () {
@@ -178,6 +190,17 @@ test('tenant role user cannot view tenant details', function () {
     $this->actingAs($user)
         ->getJson("/api/v1/tenants/{$tenant->id}")
         ->assertStatus(403);
+});
+
+test('agent role user can view tenant details', function () {
+    $user = User::factory()->create();
+    $user->assignRole('agent');
+    $tenant = createTenant();
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/tenants/{$tenant->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $tenant->id);
 });
 
 test('returns 404 for non-existent tenant', function () {

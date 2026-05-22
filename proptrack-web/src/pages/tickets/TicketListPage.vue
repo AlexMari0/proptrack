@@ -114,7 +114,7 @@ function statusBadge(s: TicketStatus): string {
     </div>
 
     <div v-else class="card" style="padding:0;overflow:hidden;overflow-x:auto">
-      <table class="data-table" style="min-width:860px">
+      <table class="data-table" style="min-width:720px">
         <thead>
           <tr>
             <th>Ticket #</th>
@@ -122,8 +122,6 @@ function statusBadge(s: TicketStatus): string {
             <th>Property</th>
             <th>Category</th>
             <th>Priority</th>
-            <th>Submitted by</th>
-            <th>Assigned to</th>
             <th>Status</th>
             <th>Date</th>
             <th></th>
@@ -131,13 +129,11 @@ function statusBadge(s: TicketStatus): string {
         </thead>
         <tbody>
           <tr v-for="ticket in tickets" :key="ticket.id" class="ticket-row" @click="router.push({ name: 'ticket-detail', params: { id: ticket.id } })">
-            <td style="font-family:monospace;font-size:0.78rem;font-weight:700;color:var(--amber)">{{ ticket.ticket_number }}</td>
+            <td class="ticket-link">{{ ticket.ticket_number }}</td>
             <td style="font-weight:600;color:var(--g900)">{{ ticket.title }}</td>
             <td style="color:var(--g500)">{{ ticket.property.name }}</td>
             <td><span class="badge badge--indigo" style="text-transform:capitalize">{{ ticket.category }}</span></td>
             <td><span :class="priorityBadge(ticket.priority)" style="text-transform:capitalize">{{ ticket.priority }}</span></td>
-            <td style="color:var(--g500)">{{ ticket.submitted_by.name }}</td>
-            <td style="color:var(--g400)">{{ ticket.assigned_to ? ticket.assigned_to.name : 'Unassigned' }}</td>
             <td><span :class="statusBadge(ticket.status)" style="text-transform:capitalize;white-space:nowrap">{{ ticket.status.replace('_', ' ') }}</span></td>
             <td style="color:var(--g400);font-size:0.78rem;white-space:nowrap">{{ new Date(ticket.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) }}</td>
             <td>
@@ -164,6 +160,17 @@ function statusBadge(s: TicketStatus): string {
 
 <style scoped>
 .ticket-row { cursor: pointer; }
+.ticket-link {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  transition: color 0.15s;
+}
+.ticket-row:hover .ticket-link {
+  text-decoration: underline;
+  color: var(--color-primary-hover, #4f46e5);
+}
 .row-btn {
   width: 28px; height: 28px; border: none; background: none; cursor: pointer;
   color: var(--g400); display: flex; align-items: center; justify-content: center;

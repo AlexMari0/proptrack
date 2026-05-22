@@ -8,19 +8,19 @@ use App\Models\User;
 class TenantPolicy
 {
     /**
-     * Owners and admins can list all tenants.
+     * Owners, admins, and agents can list all tenants.
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasRole('owner') || $user->hasRole('admin') || $user->hasRole('agent');
     }
 
     /**
-     * Owners and admins can view a single tenant.
+     * Owners, admins, and agents can view a single tenant.
      */
     public function view(User $user, Tenant $tenant): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasRole('owner') || $user->hasRole('admin') || $user->hasRole('agent');
     }
 
     /**

@@ -70,7 +70,7 @@
           </div>
         </div>
 
-        <div class="kpi-card kpi-card--outstanding">
+        <div :class="['kpi-card', 'kpi-card--outstanding', { 'kpi-card--critical': reportData.total_outstanding > 0 }]">
           <div class="kpi-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
@@ -98,8 +98,24 @@
           <div class="chart-wrap">
             <Bar v-if="trendChartData.datasets[0].data.some((v: number) => v > 0)" :data="trendChartData" :options="chartOptions" />
             <div v-else class="chart-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--g300)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-              <span style="font-size:0.8rem;color:var(--g400)">No trend data for this year</span>
+              <!-- Graph Skeleton background grid lines -->
+              <div class="skeleton-grid" aria-hidden="true">
+                <div v-for="i in 4" :key="i" class="skeleton-grid-line" />
+              </div>
+              
+              <!-- Graph Skeleton bars -->
+              <div class="skeleton-bars" aria-hidden="true">
+                <div v-for="(h, idx) in [40, 25, 60, 45, 80, 55, 70, 40, 90, 65, 50, 30]" :key="idx" class="skeleton-bar-group">
+                  <div class="skeleton-bar skeleton-bar--invoiced" :style="{ height: h + '%' }" />
+                  <div class="skeleton-bar skeleton-bar--collected" :style="{ height: (h * 0.7) + '%' }" />
+                </div>
+              </div>
+
+              <!-- Content Overlay -->
+              <div class="chart-empty-overlay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                <span class="empty-text">No trend data for this year</span>
+              </div>
             </div>
           </div>
         </div>
@@ -300,7 +316,102 @@ export default defineComponent({
 
 .chart-wrap { height: 300px; position: relative; margin-top: 12px; }
 .chart-empty {
-  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  background: var(--g50); border-radius: 10px; border: 1px dashed var(--g200);
+  height: 100%; position: relative; display: flex; align-items: center; justify-content: center;
+  background: var(--g50); border-radius: 12px; border: 1px dashed var(--g200);
+  overflow: hidden; padding: 24px;
+}
+
+.kpi-card--outstanding.kpi-card--critical {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.02);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.04);
+}
+.kpi-card--outstanding.kpi-card--critical:hover {
+  border-color: var(--status-red);
+  background: rgba(239, 68, 68, 0.03);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.08);
+}
+
+.skeleton-grid {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.skeleton-grid-line {
+  width: 100%;
+  height: 1px;
+  background: var(--g100);
+}
+
+.skeleton-bars {
+  position: absolute;
+  top: 32px;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.skeleton-bar-group {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  max-width: 32px;
+}
+
+.skeleton-bar {
+  width: 8px;
+  border-radius: 4px 4px 0 0;
+  opacity: 0.25;
+}
+
+.skeleton-bar--invoiced {
+  background: #d4c09a;
+}
+
+.skeleton-bar--collected {
+  background: #86efac;
+}
+
+.chart-empty-overlay {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 18px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--g100);
+  box-shadow: 0 4px 12px rgba(26, 23, 18, 0.05);
+}
+
+.chart-empty-overlay .empty-icon {
+  width: 30px;
+  height: 30px;
+  color: var(--g400);
+}
+
+.chart-empty-overlay .empty-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--g600);
 }
 </style>
