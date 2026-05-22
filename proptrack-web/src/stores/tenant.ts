@@ -7,6 +7,7 @@ export const useTenantStore = defineStore('tenant', {
     meta: null as TenantMeta | null,
     filters: {
       search: '',
+      status: '',
       page: 1,
       per_page: 15,
     } as TenantFilters,
@@ -55,7 +56,7 @@ export const useTenantStore = defineStore('tenant', {
     },
 
     resetFilters() {
-      this.filters = { search: '', page: 1, per_page: 15 }
+      this.filters = { search: '', status: '', page: 1, per_page: 15 }
     },
 
     setLoading(value: boolean) { this.isLoading = value },

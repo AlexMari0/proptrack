@@ -340,13 +340,13 @@ body {
   color: var(--g400);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0 16px 10px;
+  padding: 16px 20px 12px;
   border-bottom: 1px solid var(--g100);
   white-space: nowrap;
 }
 
 .data-table td {
-  padding: 13px 16px;
+  padding: 14px 20px;
   color: var(--g700);
   border-bottom: 1px solid var(--g100);
   vertical-align: middle;

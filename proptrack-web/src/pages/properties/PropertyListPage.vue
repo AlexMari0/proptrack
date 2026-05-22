@@ -91,7 +91,7 @@ const typeOptions = [
     <div v-if="error" class="alert alert--error">{{ error }}</div>
 
     <div v-if="isLoading" class="prop-grid">
-      <div v-for="i in 8" :key="i" class="shimmer" style="aspect-ratio:3/4;border-radius:16px;" />
+      <div v-for="i in 8" :key="i" class="shimmer" style="aspect-ratio:1/1.05;border-radius:16px;" />
     </div>
 
     <div v-else-if="!isLoading && properties.length === 0" class="empty-state">
@@ -123,8 +123,8 @@ const typeOptions = [
 <style scoped>
 .prop-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
 }
 </style>

@@ -11,6 +11,7 @@ export const tenantService = {
   async list(filters: Partial<TenantFilters> = {}): Promise<TenantListResponse> {
     const params: Record<string, unknown> = {}
     if (filters.search) params.search = filters.search
+    if (filters.status) params.status = filters.status
     if (filters.page) params.page = filters.page
     if (filters.per_page) params.per_page = filters.per_page
 

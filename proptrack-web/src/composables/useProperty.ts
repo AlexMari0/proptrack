@@ -114,6 +114,11 @@ export function useProperty() {
       if (store.selectedProperty?.id === propertyId) {
         store.selectedProperty.photos.push(response.data)
       }
+      // Also append the photo to the property in the list in the store
+      const propertyInList = store.properties.find((p) => p.id === propertyId)
+      if (propertyInList) {
+        propertyInList.photos.push(response.data)
+      }
       return true
     } catch {
       store.setError('Failed to upload photo.')

@@ -26,7 +26,6 @@ function onStatusFilter(status: ContractStatus | '') {
 }
 
 async function handleTerminate(id: string) {
-  if (!confirm('Terminate this contract? This cannot be undone.')) return
   await terminateContract(id)
   await fetchContracts()
 }

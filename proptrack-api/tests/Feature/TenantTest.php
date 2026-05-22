@@ -234,7 +234,6 @@ test('admin can delete a tenant', function () {
 
     $this->assertDatabaseMissing('tenants', ['id' => $tenant->id]);
 });
-
 test('owner cannot delete a tenant', function () {
     $owner = makeOwnerUser();
     $tenant = createTenant();
@@ -244,4 +243,80 @@ test('owner cannot delete a tenant', function () {
         ->assertStatus(403);
 
     $this->assertDatabaseHas('tenants', ['id' => $tenant->id]);
+});
+
+test('owner can filter tenants by active status', function () {
+    $owner = makeOwnerUser();
+    
+    // Create one tenant with active contract
+    $tenantWithContract = createTenant(['name' => 'Active Tenant', 'email' => 'active@example.com', 'id_card_number' => '3171234567890002']);
+    
+    $property = \App\Models\Property::create([
+        'owner_id' => $owner->id,
+        'name' => 'Kos Harmoni',
+        'address' => 'Jl. Harmoni No. 12',
+        'type' => 'kos',
+        'status' => 'available',
+        'latitude' => -6.1751,
+        'longitude' => 106.8272,
+        'monthly_price' => 1500000,
+    ]);
+
+    \App\Models\Contract::create([
+        'tenant_id' => $tenantWithContract->id,
+        'property_id' => $property->id,
+        'status' => 'active',
+        'start_date' => now(),
+        'end_date' => now()->addYear(),
+        'monthly_rent' => 5000000,
+        'deposit_amount' => 3000000,
+        'billing_date' => 5,
+    ]);
+
+    // Create another tenant without contract
+    createTenant(['name' => 'Inactive Tenant', 'email' => 'inactive@example.com', 'id_card_number' => '3171234567890003']);
+
+    $this->actingAs($owner)
+        ->getJson('/api/v1/tenants?status=active')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.name', 'Active Tenant');
+});
+
+test('owner can filter tenants by inactive status', function () {
+    $owner = makeOwnerUser();
+    
+    // Create one tenant with active contract
+    $tenantWithContract = createTenant(['name' => 'Active Tenant', 'email' => 'active@example.com', 'id_card_number' => '3171234567890002']);
+    
+    $property = \App\Models\Property::create([
+        'owner_id' => $owner->id,
+        'name' => 'Kos Harmoni',
+        'address' => 'Jl. Harmoni No. 12',
+        'type' => 'kos',
+        'status' => 'available',
+        'latitude' => -6.1751,
+        'longitude' => 106.8272,
+        'monthly_price' => 1500000,
+    ]);
+
+    \App\Models\Contract::create([
+        'tenant_id' => $tenantWithContract->id,
+        'property_id' => $property->id,
+        'status' => 'active',
+        'start_date' => now(),
+        'end_date' => now()->addYear(),
+        'monthly_rent' => 5000000,
+        'deposit_amount' => 3000000,
+        'billing_date' => 5,
+    ]);
+
+    // Create another tenant without contract
+    createTenant(['name' => 'Inactive Tenant', 'email' => 'inactive@example.com', 'id_card_number' => '3171234567890003']);
+
+    $this->actingAs($owner)
+        ->getJson('/api/v1/tenants?status=inactive')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.name', 'Inactive Tenant');
 });

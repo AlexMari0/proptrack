@@ -34,6 +34,15 @@ class TenantController extends Controller
             });
         }
 
+        if ($request->filled('status')) {
+            $status = $request->status;
+            if ($status === 'active') {
+                $query->whereHas('activeContract');
+            } elseif ($status === 'inactive') {
+                $query->whereDoesntHave('activeContract');
+            }
+        }
+
         $perPage = (int) $request->get('per_page', 15);
         $tenants = $query->paginate($perPage);
 

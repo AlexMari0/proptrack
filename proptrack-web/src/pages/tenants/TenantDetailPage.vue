@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTenant } from '@/composables/useTenant'
 import { useAuthStore } from '@/stores/auth'
+import { invoiceService } from '@/services/invoiceService'
+import InvoiceCard from '@/components/payment/InvoiceCard.vue'
+import type { Invoice } from '@/types/invoice'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,7 +22,46 @@ const canDelete = computed(() =>
   authStore.user?.roles?.includes('admin') ?? false,
 )
 
-onMounted(() => fetchTenant(tenantId.value))
+const invoices = ref<Invoice[]>([])
+const isInvoicesLoading = ref(false)
+
+onMounted(async () => {
+  await fetchTenant(tenantId.value)
+  await fetchInvoices()
+})
+
+async function fetchInvoices() {
+  isInvoicesLoading.value = true
+  try {
+    const res = await invoiceService.list({ tenant_id: tenantId.value, per_page: 20 })
+    invoices.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch tenant invoices:', err)
+  } finally {
+    isInvoicesLoading.value = false
+  }
+}
+
+async function handleSendInvoice(id: string) {
+  if (!confirm('Send payment reminder notification to tenant?')) return
+  try {
+    await invoiceService.send(id)
+    alert('Payment reminder sent successfully!')
+    await fetchInvoices()
+  } catch (err) {
+    console.error('Failed to send invoice reminder:', err)
+    alert('Failed to send payment reminder.')
+  }
+}
+
+async function handleDownloadInvoice(id: string, invoiceNumber: string) {
+  try {
+    await invoiceService.downloadDocument(id, invoiceNumber)
+  } catch (err) {
+    console.error('Failed to download invoice PDF:', err)
+    alert('Failed to download invoice PDF.')
+  }
+}
 
 async function handleDelete() {
   if (!confirm(`Delete tenant "${selectedTenant.value?.name}"? This cannot be undone.`)) return
@@ -28,6 +70,22 @@ async function handleDelete() {
 
 const formatIDR = (v: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
+
+function formatKtp(ktp: string): string {
+  if (!ktp || ktp.length !== 16) return ktp
+  return `${ktp.slice(0, 4)} **** **** ${ktp.slice(12)}`
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return dateStr
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
 </script>
 
 <template>
@@ -79,7 +137,7 @@ const formatIDR = (v: number) =>
           </div>
           <div class="info-item">
             <span class="info-item__label">KTP number</span>
-            <span class="info-item__value" style="font-family:monospace;letter-spacing:0.05em">{{ selectedTenant.id_card_number }}</span>
+            <span class="info-item__value" style="font-family:monospace;letter-spacing:0.05em">{{ formatKtp(selectedTenant.id_card_number) }}</span>
           </div>
           <div class="info-item">
             <span class="info-item__label">Emergency contact</span>
@@ -91,35 +149,55 @@ const formatIDR = (v: number) =>
           </div>
           <div class="info-item">
             <span class="info-item__label">Registered</span>
-            <span class="info-item__value">{{ new Date(selectedTenant.created_at).toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' }) }}</span>
+            <span class="info-item__value">{{ formatDate(selectedTenant.created_at) }}</span>
           </div>
         </div>
       </section>
 
       <!-- Active Contract -->
-      <section class="card">
-        <p class="section-label">Active contract</p>
-        <div v-if="selectedTenant.active_contract" class="contract-summary">
+      <section class="card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <p class="section-label" style="margin:0">Active contract</p>
+          <span v-if="selectedTenant.active_contract" class="badge badge--green">Active</span>
+        </div>
+        <div v-if="selectedTenant.active_contract" class="contract-summary" style="margin-top:0">
           <div class="contract-row">
             <span style="color:var(--g500);font-size:0.8rem">Property</span>
             <span style="font-weight:600;color:var(--g900)">{{ selectedTenant.active_contract.property.name }}</span>
           </div>
           <div class="contract-row">
             <span style="color:var(--g500);font-size:0.8rem">Period</span>
-            <span>{{ selectedTenant.active_contract.start_date }} → {{ selectedTenant.active_contract.end_date }}</span>
+            <span>{{ formatDate(selectedTenant.active_contract.start_date) }} → {{ formatDate(selectedTenant.active_contract.end_date) }}</span>
           </div>
           <div class="contract-row">
             <span style="color:var(--g500);font-size:0.8rem">Monthly rent</span>
             <span class="tabular-nums" style="font-weight:700;color:var(--amber)">{{ formatIDR(selectedTenant.active_contract.monthly_rent) }}</span>
           </div>
-          <span class="badge badge--green" style="align-self:flex-start">Active</span>
         </div>
-        <div v-else class="no-contract">
+        <div v-else class="no-contract" style="margin-top:0">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--g300)" aria-hidden="true">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
             <polyline points="14 2 14 8 20 8"/>
           </svg>
           <p style="margin:0;font-size:0.875rem;color:var(--g500)">No active contract</p>
+        </div>
+      </section>
+
+      <!-- Invoices / Payment History -->
+      <section class="card">
+        <p class="section-label">Invoices & Payment History</p>
+        <div v-if="isInvoicesLoading" class="invoice-list">
+          <div v-for="i in 3" :key="i" class="shimmer" style="height:96px;border-radius:16px;" />
+        </div>
+        <div v-else-if="invoices.length === 0" class="no-invoices">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--g300)" aria-hidden="true">
+            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/>
+            <path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/>
+          </svg>
+          <p style="margin:0;font-size:0.875rem;color:var(--g500)">No invoices found for this tenant</p>
+        </div>
+        <div v-else class="invoice-list">
+          <InvoiceCard v-for="invoice in invoices" :key="invoice.id" :invoice="invoice" :show-actions="canManage" @send="handleSendInvoice" @download="handleDownloadInvoice" />
         </div>
       </section>
     </div>
@@ -200,6 +278,26 @@ const formatIDR = (v: number) =>
 .contract-row:last-of-type { border-bottom: none; }
 
 .no-contract {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  background: var(--g50);
+  border: 1px dashed var(--g200);
+  border-radius: 10px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.invoice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.no-invoices {
   display: flex;
   flex-direction: column;
   align-items: center;

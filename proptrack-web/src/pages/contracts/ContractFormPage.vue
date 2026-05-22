@@ -26,6 +26,22 @@ const form = reactive<StoreContractPayload>({
 
 const fieldErrors = reactive<Partial<Record<keyof StoreContractPayload, string>>>({})
 
+const billingDays = Array.from({ length: 28 }, (_, i) => i + 1)
+
+const calculatedDuration = computed(() => {
+  if (!form.start_date || !form.end_date) return null
+  const start = new Date(form.start_date)
+  const end = new Date(form.end_date)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+  if (end <= start) return null
+
+  const months =
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+  
+  if (months <= 0) return null
+  return `Duration: ${months} ${months === 1 ? 'month' : 'months'}`
+})
+
 async function loadDropdowns() {
   dropdownsLoading.value = true
   try {
@@ -132,13 +148,24 @@ async function handleSubmit() {
 
       <div class="card" style="margin-bottom:16px">
         <p class="section-label">Duration</p>
-        <div class="form-grid" style="margin-top:12px">
-          <div>
+        <div class="duration-layout" style="margin-top:12px">
+          <div class="duration-field">
             <label class="form-label" for="start_date">Start date <span style="color:#dc2626">*</span></label>
             <input id="start_date" v-model="form.start_date" type="date" class="form-input" :class="fieldErrors.start_date ? 'input--err' : ''" />
             <p v-if="fieldErrors.start_date" class="form-error">{{ fieldErrors.start_date }}</p>
           </div>
-          <div>
+
+          <div class="duration-separator">
+            <div v-if="calculatedDuration" class="duration-pill">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+              </svg>
+              <span>{{ calculatedDuration }}</span>
+            </div>
+            <div v-else class="duration-line"></div>
+          </div>
+
+          <div class="duration-field">
             <label class="form-label" for="end_date">End date <span style="color:#dc2626">*</span></label>
             <input id="end_date" v-model="form.end_date" type="date" class="form-input" :class="fieldErrors.end_date ? 'input--err' : ''" />
             <p v-if="fieldErrors.end_date" class="form-error">{{ fieldErrors.end_date }}</p>
@@ -167,7 +194,9 @@ async function handleSubmit() {
           </div>
           <div>
             <label class="form-label" for="billing_date">Billing day (1–28) <span style="color:#dc2626">*</span></label>
-            <input id="billing_date" v-model="form.billing_date" type="number" min="1" max="28" class="form-input" :class="fieldErrors.billing_date ? 'input--err' : ''" />
+            <select id="billing_date" v-model="form.billing_date" class="form-select" :class="fieldErrors.billing_date ? 'input--err' : ''">
+              <option v-for="day in billingDays" :key="day" :value="day">{{ day }}</option>
+            </select>
             <p v-if="fieldErrors.billing_date" class="form-error">{{ fieldErrors.billing_date }}</p>
           </div>
         </div>
@@ -193,4 +222,87 @@ async function handleSubmit() {
 .prefix-wrap { position: relative; display: flex; align-items: center; }
 .prefix { position: absolute; left: 12px; font-size: 0.875rem; color: var(--g500); font-weight: 600; pointer-events: none; }
 .prefix-input { padding-left: 36px !important; }
+
+/* Responsive Duration separator layout */
+.duration-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+}
+
+.duration-field {
+  flex: 1;
+}
+
+.duration-separator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 150px;
+  height: 42px;
+  margin-top: 26px; /* Align with inputs */
+}
+
+.duration-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  border: 1px solid rgba(224, 156, 26, 0.25);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(224, 156, 26, 0.05);
+}
+
+.duration-pill svg {
+  width: 14px;
+  height: 14px;
+  color: var(--amber);
+}
+
+.duration-line {
+  width: 60px;
+  height: 2px;
+  background: var(--g200);
+  position: relative;
+}
+
+.duration-line::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--g300);
+  border-right: 2px solid var(--g300);
+  transform: rotate(45deg);
+}
+
+@media (max-width: 640px) {
+  .duration-layout {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .duration-separator {
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    height: auto;
+    align-self: center;
+  }
+  .duration-line {
+    width: 100%;
+    height: 1px;
+  }
+  .duration-line::after {
+    display: none;
+  }
+}
 </style>

@@ -40,6 +40,12 @@ const duration = computed(() => {
 function goToDetail() {
   router.push({ name: 'contract-detail', params: { id: props.contract.id } })
 }
+
+function handleTerminateClick() {
+  if (confirm('Are you sure you want to terminate this contract? This action is destructive and cannot be easily undone.')) {
+    emit('terminate', props.contract.id)
+  }
+}
 </script>
 
 <template>
@@ -89,7 +95,7 @@ function goToDetail() {
       </button>
       <button
         class="contract-card__action contract-card__action--terminate"
-        @click.stop="emit('terminate', contract.id)"
+        @click.stop="handleTerminateClick"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
@@ -102,18 +108,19 @@ function goToDetail() {
 
 <style scoped>
 .contract-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: #ffffff;
+  border: 1px solid var(--g100);
   border-radius: 14px;
   padding: 18px 20px;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(26, 23, 18, 0.03);
   transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
 
 .contract-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  border-color: var(--color-primary);
+  box-shadow: 0 8px 32px rgba(26, 23, 18, 0.08);
+  border-color: var(--amber);
 }
 
 /* Header */
@@ -136,7 +143,7 @@ function goToDetail() {
 .contract-card__tenant {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--color-text);
+  color: var(--g900);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -145,14 +152,14 @@ function goToDetail() {
 .contract-card__arrow {
   width: 14px;
   height: 14px;
-  color: var(--color-text-muted);
+  color: var(--g400);
   flex-shrink: 0;
 }
 
 .contract-card__property {
   font-weight: 500;
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--g500);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -168,9 +175,9 @@ function goToDetail() {
   border-radius: 20px;
   flex-shrink: 0;
 }
-.badge--active     { background: rgba(34,197,94,0.15); color: #22c55e; }
-.badge--expired    { background: var(--color-surface-alt); color: var(--color-text-muted); border: 1px solid var(--color-border); }
-.badge--terminated { background: rgba(239,68,68,0.12); color: #ef4444; }
+.badge--active     { background: rgba(34, 197, 94, 0.1); color: var(--status-green); }
+.badge--expired    { background: var(--g50); color: var(--g500); border: 1px solid var(--g200); }
+.badge--terminated { background: rgba(239, 68, 68, 0.08); color: var(--status-red); }
 
 /* Details */
 .contract-card__details {
@@ -184,11 +191,11 @@ function goToDetail() {
   align-items: center;
   gap: 6px;
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: var(--g500);
 }
 
 .contract-card__detail svg { width: 14px; height: 14px; flex-shrink: 0; }
-.contract-card__rent { font-weight: 700; color: var(--color-primary); font-size: 0.875rem; }
+.contract-card__rent { font-weight: 700; color: var(--amber); font-size: 0.875rem; }
 .contract-card__billing { font-size: 0.75rem; }
 .contract-card__duration { font-size: 0.75rem; opacity: 0.7; }
 
@@ -198,7 +205,7 @@ function goToDetail() {
   gap: 8px;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--g100);
 }
 
 .contract-card__action {
@@ -210,7 +217,7 @@ function goToDetail() {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--g200);
   transition: all 0.2s;
 }
 
@@ -218,21 +225,22 @@ function goToDetail() {
 
 .contract-card__action--download {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--g600);
 }
 .contract-card__action--download:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: rgba(99,102,241,0.08);
+  border-color: var(--g400);
+  color: var(--g900);
+  background: var(--g50);
 }
 
 .contract-card__action--terminate {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--status-red);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 .contract-card__action--terminate:hover {
-  border-color: #ef4444;
-  color: #ef4444;
-  background: rgba(239,68,68,0.08);
+  border-color: var(--status-red);
+  color: var(--status-red);
+  background: rgba(239, 68, 68, 0.08);
 }
 </style>

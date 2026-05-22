@@ -63,6 +63,7 @@ export interface TenantResponse {
 
 export interface TenantFilters {
   search: string
+  status?: 'active' | 'inactive' | ''
   page: number
   per_page: number
 }

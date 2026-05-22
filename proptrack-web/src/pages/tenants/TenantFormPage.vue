@@ -126,7 +126,7 @@ async function handleSubmit() {
         <button type="submit" class="btn-primary" :disabled="isSubmitting">
           {{ isSubmitting ? 'Saving…' : isEditMode ? 'Update tenant' : 'Create tenant' }}
         </button>
-        <button type="button" class="btn-ghost" @click="router.back()">Cancel</button>
+        <button type="button" class="btn-cancel" @click="router.back()">Cancel</button>
       </div>
     </form>
   </div>
@@ -135,9 +135,38 @@ async function handleSubmit() {
 <style scoped>
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-top: 12px;
 }
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--g500);
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Outfit', var(--font-sans);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  padding: 9px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.btn-cancel:hover {
+  color: var(--g900);
+  background-color: var(--g50);
+}
+
 .input--err { border-color: #dc2626 !important; }
 </style>

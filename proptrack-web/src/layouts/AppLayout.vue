@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useAuthStore } from '@/stores/auth'
+import { useTicket } from '@/composables/useTicket'
+import { useInvoice } from '@/composables/useInvoice'
+import { useNotification } from '@/composables/useNotification'
 import NavbarNotificationBell from '@/components/layout/NavbarNotificationBell.vue'
 
 const authStore = useAuthStore()
 const { logout, loading: authLoading } = useAuth()
+
+const { fetchTickets, tickets } = useTicket()
+const { fetchInvoices, invoices } = useInvoice()
+const { fetchNotifications, unreadCount } = useNotification()
 
 const isOwnerOrAdmin = () =>
   ['owner', 'admin'].some(role => authStore.user?.roles?.includes(role))
@@ -17,71 +24,106 @@ const toggleSidebar = () => {
   localStorage.setItem('sidebar_expanded', isExpanded.value ? 'true' : 'false')
 }
 
-const triggerBellClick = (e: MouseEvent) => {
-  const container = (e.target as HTMLElement).closest('.sidebar__bell')
-  const button = container?.querySelector('button')
-  button?.click()
+const isNotificationsOpen = ref(false)
+const toggleNotifications = () => {
+  isNotificationsOpen.value = !isNotificationsOpen.value
 }
+
+const openTicketsCount = computed(() => tickets.value.filter(t => t.status === 'open').length)
+const unpaidInvoicesCount = computed(() => invoices.value.filter(i => i.status === 'unpaid' || i.status === 'overdue').length)
+
+onMounted(async () => {
+  if (authStore.user) {
+    const fetches: Promise<unknown>[] = [fetchNotifications()]
+    if (isOwnerOrAdmin()) {
+      fetches.push(fetchTickets(), fetchInvoices())
+    } else if (isAgent()) {
+      fetches.push(fetchTickets())
+    } else {
+      fetches.push(fetchTickets(), fetchInvoices())
+    }
+    await Promise.allSettled(fetches)
+  }
+})
 </script>
 
 <template>
   <div class="shell">
     <!-- ═══ Icon/Expanded sidebar ═════════════════════════════════════════════ -->
     <aside class="sidebar" :class="{ 'sidebar--expanded': isExpanded }" aria-label="Site navigation">
-      <div class="sidebar__logo">
-        <RouterLink to="/dashboard" class="logo-link" aria-label="PropTrack home">
-          <span class="logo-mark">P</span>
-          <span class="logo-text">PropTrack</span>
-        </RouterLink>
+      <div class="sidebar__top">
+        <div class="sidebar__logo">
+          <RouterLink to="/dashboard" class="logo-link" aria-label="PropTrack home">
+            <span class="logo-mark">P</span>
+            <span class="logo-text">PropTrack</span>
+          </RouterLink>
+        </div>
       </div>
 
       <nav class="sidebar__nav" aria-label="Main">
-        <RouterLink to="/dashboard" class="sidebar__link" title="Dashboard" aria-label="Dashboard">
+        <RouterLink to="/dashboard" class="sidebar__link" aria-label="Dashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span class="sidebar__label">Dashboard</span>
+          <span class="sidebar__tooltip">Dashboard</span>
         </RouterLink>
-        <RouterLink v-if="isOwnerOrAdmin() || isAgent()" to="/properties" class="sidebar__link" title="Properties" aria-label="Properties">
+        <RouterLink v-if="isOwnerOrAdmin() || isAgent()" to="/properties" class="sidebar__link" aria-label="Properties">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M8 10h.01M8 14h.01M16 10h.01M16 14h.01"/></svg>
           <span class="sidebar__label">Properties</span>
+          <span class="sidebar__tooltip">Properties</span>
         </RouterLink>
-        <RouterLink v-if="isOwnerOrAdmin() || isAgent()" to="/tenants" class="sidebar__link" title="Tenants" aria-label="Tenants">
+        <RouterLink v-if="isOwnerOrAdmin() || isAgent()" to="/tenants" class="sidebar__link" aria-label="Tenants">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span class="sidebar__label">Tenants</span>
+          <span class="sidebar__tooltip">Tenants</span>
         </RouterLink>
-        <RouterLink v-if="isOwnerOrAdmin()" to="/contracts" class="sidebar__link" title="Contracts" aria-label="Contracts">
+        <RouterLink v-if="isOwnerOrAdmin()" to="/contracts" class="sidebar__link" aria-label="Contracts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
           <span class="sidebar__label">Contracts</span>
+          <span class="sidebar__tooltip">Contracts</span>
         </RouterLink>
-        <RouterLink v-if="isOwnerOrAdmin()" to="/invoices" class="sidebar__link" title="Invoices" aria-label="Invoices">
+        <RouterLink v-if="isOwnerOrAdmin()" to="/invoices" class="sidebar__link" aria-label="Invoices">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/></svg>
           <span class="sidebar__label">Invoices</span>
+          <span v-if="unpaidInvoicesCount > 0" class="sidebar__badge">{{ unpaidInvoicesCount }}</span>
+          <span class="sidebar__tooltip">Invoices</span>
         </RouterLink>
-        <RouterLink to="/tickets" class="sidebar__link" title="Tickets" aria-label="Support tickets">
+        <RouterLink to="/tickets" class="sidebar__link" aria-label="Support tickets">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
           <span class="sidebar__label">Tickets</span>
+          <span v-if="openTicketsCount > 0" class="sidebar__badge">{{ openTicketsCount }}</span>
+          <span class="sidebar__tooltip">Tickets</span>
         </RouterLink>
-        <RouterLink v-if="isOwnerOrAdmin()" to="/reports/financial" class="sidebar__link" title="Reports" aria-label="Financial reports">
+        <RouterLink v-if="isOwnerOrAdmin()" to="/reports/financial" class="sidebar__link" aria-label="Financial reports">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
           <span class="sidebar__label">Reports</span>
+          <span class="sidebar__tooltip">Reports</span>
         </RouterLink>
       </nav>
 
       <div class="sidebar__bottom">
-        <div class="sidebar__bell">
-          <NavbarNotificationBell />
-          <span class="sidebar__label" @click="triggerBellClick">Notifications</span>
-        </div>
-        <button class="sidebar__link sidebar__link--logout" @click="logout" :disabled="authLoading" title="Sign out" aria-label="Sign out">
+        <button
+          class="sidebar__link"
+          :class="{ 'sidebar__link--active': isNotificationsOpen }"
+          @click="toggleNotifications"
+          aria-label="Notifications"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <span class="sidebar__label">Notifications</span>
+          <span v-if="unreadCount > 0" class="sidebar__badge">{{ unreadCount }}</span>
+          <span class="sidebar__tooltip">Notifications</span>
+        </button>
+        <button class="sidebar__link sidebar__link--logout" @click="logout" :disabled="authLoading" aria-label="Sign out">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
           <span class="sidebar__label">Sign out</span>
-        </button>
-        <button class="sidebar__link sidebar__toggle" @click="toggleSidebar" :title="isExpanded ? 'Collapse' : 'Expand'" :aria-label="isExpanded ? 'Collapse sidebar' : 'Expand sidebar'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" :class="{ 'rotate-180': isExpanded }">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-          <span class="sidebar__label">Collapse</span>
+          <span class="sidebar__tooltip">Sign out</span>
         </button>
       </div>
+
+      <!-- Teleported Notification Drawer -->
+      <NavbarNotificationBell :isOpen="isNotificationsOpen" @close="isNotificationsOpen = false" />
     </aside>
 
     <!-- ═══ Right panel ═══════════════════════════════════════════════════════ -->
@@ -89,6 +131,17 @@ const triggerBellClick = (e: MouseEvent) => {
       <!-- Top bar -->
       <header class="topbar" role="banner">
         <div class="topbar__left">
+          <!-- Sidebar toggle button next to the user's name -->
+          <button class="topbar__toggle" @click="toggleSidebar" :aria-label="isExpanded ? 'Collapse sidebar' : 'Expand sidebar'">
+            <Transition name="icon-fade" mode="out-in">
+              <svg v-if="isExpanded" key="collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              <svg v-else key="expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </Transition>
+          </button>
           <!-- Breadcrumb-style page label -->
           <p class="topbar__route">{{ authStore.user?.name }}</p>
         </div>
@@ -133,6 +186,9 @@ const triggerBellClick = (e: MouseEvent) => {
 
 /* ─── Sidebar ────────────────────────────────────────────────────────────────── */
 .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
   width: 64px;
   background: #fff;
   border-radius: 0;
@@ -143,7 +199,8 @@ const triggerBellClick = (e: MouseEvent) => {
   gap: 2px;
   flex-shrink: 0;
   z-index: var(--z-sidebar);
-  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-right: 1px solid var(--g100);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar--expanded {
@@ -151,39 +208,63 @@ const triggerBellClick = (e: MouseEvent) => {
   align-items: stretch;
 }
 
-.sidebar__logo {
-  margin-bottom: 18px;
+.sidebar__top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+  margin-bottom: 18px;
+  gap: 12px;
+  transition: flex-direction 0.25s, justify-content 0.25s, padding 0.25s;
+}
+
+.sidebar--expanded .sidebar__top {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.sidebar__logo {
   display: flex;
   justify-content: center;
 }
 
 .sidebar--expanded .sidebar__logo {
   justify-content: flex-start;
-  padding-left: 2px;
 }
 
 .logo-link {
   display: flex;
   align-items: center;
   text-decoration: none;
+  gap: 0;
+  transition: gap 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar--expanded .logo-link {
   gap: 12px;
 }
 
 .logo-mark {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 32px; /* Adjusted to 32px when collapsed to avoid overlap with border toggle button */
+  height: 32px;
   background: var(--g900);
   color: #fff;
   border-radius: 10px;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1rem;
   letter-spacing: -0.03em;
-  transition: transform 0.15s;
+  transition: transform 0.15s, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), font-size 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
+}
+.sidebar--expanded .logo-mark {
+  width: 36px; /* Dynamically expands to 36px in expanded state */
+  height: 36px;
+  font-size: 1.05rem;
 }
 .logo-mark:hover { transform: scale(1.06); }
 
@@ -196,12 +277,15 @@ const triggerBellClick = (e: MouseEvent) => {
   max-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 0.1s ease, max-width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Instant fade-out when collapsing to prevent horizontal layout squishing */
+  transition: opacity 0.08s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar--expanded .logo-text {
   opacity: 1;
   max-width: 140px;
+  /* Smooth delayed fade-in when expanding */
+  transition: opacity 0.25s ease 0.05s, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar__nav {
@@ -225,13 +309,14 @@ const triggerBellClick = (e: MouseEvent) => {
   justify-content: center;
   border-radius: 10px;
   color: var(--g400);
-  transition: background 0.15s, color 0.15s, transform 0.12s, width 0.25s cubic-bezier(0.16, 1, 0.3, 1), padding 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s, color 0.15s, transform 0.12s, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   border: none;
   background: transparent;
   text-decoration: none;
   box-sizing: border-box;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
 }
 
 .sidebar--expanded .sidebar__link {
@@ -248,7 +333,8 @@ const triggerBellClick = (e: MouseEvent) => {
 
 .sidebar__link:hover { background: var(--g50); color: var(--g700); }
 
-.sidebar__link.router-link-active { background: var(--g900); color: #fff; }
+.sidebar__link.router-link-active,
+.sidebar__link--active { background: var(--g900); color: #fff; }
 
 .sidebar__link:focus-visible {
   outline: 2px solid var(--amber);
@@ -266,7 +352,8 @@ const triggerBellClick = (e: MouseEvent) => {
   max-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 0.1s ease, max-width 0.25s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Instant fade-out when collapsing to prevent label wrap/squish */
+  transition: opacity 0.08s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   margin-left: 0;
   color: inherit;
 }
@@ -275,6 +362,37 @@ const triggerBellClick = (e: MouseEvent) => {
   opacity: 1;
   max-width: 140px;
   margin-left: 10px;
+  /* Smooth delayed fade-in when expanding */
+  transition: opacity 0.25s ease 0.05s, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Sidebar Notification Badge */
+.sidebar__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--status-red, #dc2626);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 5;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1), top 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar--expanded .sidebar__badge {
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .sidebar__bottom {
@@ -291,50 +409,95 @@ const triggerBellClick = (e: MouseEvent) => {
   align-items: stretch;
 }
 
-/* Bell wrapper styling */
-.sidebar__bell {
+
+/* Sidebar toggle button (collapsible sidebar, in top header next to user name) */
+.topbar__toggle {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 40px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s, padding 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.sidebar--expanded .sidebar__bell {
-  justify-content: flex-start;
-  padding: 0 8px;
-}
-
-.sidebar__bell:hover {
-  background: var(--g50);
-}
-
-.sidebar__bell :deep(.relative) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sidebar__bell .sidebar__label {
-  color: var(--g500);
-  cursor: pointer;
-}
-
-.sidebar__bell:hover .sidebar__label {
+  border-radius: 8px;
   color: var(--g700);
+  background: #fff;
+  border: 1px solid var(--g100);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.topbar__toggle:hover {
+  background: var(--g50);
+  border-color: var(--g200);
+  color: var(--g900);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.topbar__toggle:active {
+  transform: scale(0.95);
+}
+.topbar__toggle svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  display: block;
 }
 
-/* Rotate chevron for toggle button */
-.sidebar__toggle svg {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+/* Icon cross-fade transition */
+.icon-fade-enter-active,
+.icon-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.sidebar__toggle svg.rotate-180 {
-  transform: rotate(180deg);
+.icon-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.7) rotate(-35deg);
+}
+.icon-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.7) rotate(35deg);
+}
+
+/* ─── Premium Custom CSS Tooltips ────────────────────────────────────────── */
+.sidebar__tooltip {
+  position: absolute;
+  left: 54px; /* Renders to the right of the minimized link (40px wide + margin/gap) */
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  background: var(--g900);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 4px 12px rgba(26, 23, 18, 0.16);
+  z-index: 100;
+}
+
+/* Tooltip arrow pointing left */
+.sidebar__tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: transparent var(--g900) transparent transparent;
+}
+
+/* Show custom tooltip on hover ONLY when the sidebar is collapsed (minimized) */
+.sidebar:not(.sidebar--expanded) .sidebar__link:hover .sidebar__tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Hide tooltip completely when the sidebar is expanded */
+.sidebar--expanded .sidebar__tooltip {
+  display: none;
 }
 
 /* ─── Right panel ────────────────────────────────────────────────────────────── */
