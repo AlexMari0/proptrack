@@ -26,6 +26,15 @@ class ContractController extends Controller
 
         $query = Contract::with(['tenant', 'property'])->latest();
 
+        if ($request->user()->hasRole('tenant')) {
+            $tenant = \App\Models\Tenant::where('email', $request->user()->email)->first();
+            if ($tenant) {
+                $query->where('tenant_id', $tenant->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }

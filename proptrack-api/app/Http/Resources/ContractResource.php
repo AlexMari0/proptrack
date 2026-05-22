@@ -17,8 +17,9 @@ class ContractResource extends JsonResource
                 'name' => $this->tenant?->name,
             ],
             'property'       => [
-                'id'   => $this->property?->id,
-                'name' => $this->property?->name,
+                'id'      => $this->property?->id,
+                'name'    => $this->property?->name,
+                'address' => $this->property?->address,
             ],
             'start_date'     => $this->start_date?->toDateString(),
             'end_date'       => $this->end_date?->toDateString(),

@@ -9,12 +9,20 @@ class InvoicePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['owner', 'admin', 'agent']);
+        return $user->hasAnyRole(['owner', 'admin', 'agent', 'tenant']);
     }
 
     public function view(User $user, Invoice $invoice): bool
     {
-        return $user->hasAnyRole(['owner', 'admin', 'agent']);
+        if ($user->hasAnyRole(['owner', 'admin', 'agent'])) {
+            return true;
+        }
+
+        if ($user->hasRole('tenant')) {
+            return $invoice->tenant?->email === $user->email;
+        }
+
+        return false;
     }
 
     public function send(User $user, Invoice $invoice): bool

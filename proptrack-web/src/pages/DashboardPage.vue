@@ -16,9 +16,9 @@ const router = useRouter()
 
 const { fetchProperties, properties } = useProperty()
 const { fetchTenants, tenants } = useTenant()
-const { fetchContracts, contracts } = useContract()
-const { fetchInvoices, invoices } = useInvoice()
-const { fetchTickets } = useTicket()
+const { fetchContracts, contracts, downloadDocument: downloadContractDocument } = useContract()
+const { fetchInvoices, invoices, downloadDocument: downloadInvoiceDocument } = useInvoice()
+const { fetchTickets, tickets } = useTicket()
 const { fetchSummary, reportData } = useReport()
 const { fetchNotifications, notifications, markAsRead, markAllAsRead, handleNotificationClick, unreadCount } = useNotification()
 
@@ -33,6 +33,49 @@ const isAgent = computed(() => authStore.user?.roles?.includes('agent'))
 const isTenant = computed(() => authStore.user?.roles?.includes('tenant'))
 
 const activeContracts = computed(() => contracts.value.filter(c => c.status === 'active'))
+
+const tenantActiveContract = computed(() => activeContracts.value[0] || null)
+
+const tenantNextInvoice = computed(() => {
+  if (!isTenant.value) return null
+  const unpaid = invoices.value.filter(inv => inv.status === 'unpaid' || inv.status === 'overdue')
+  if (!unpaid.length) return null
+  return [...unpaid].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0]
+})
+
+const tenantLatestInvoice = computed(() => {
+  if (!isTenant.value || !invoices.value.length) return null
+  return [...invoices.value].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+})
+
+const tenantOpenTicketsCount = computed(() => {
+  if (!isTenant.value) return 0
+  return tickets.value.filter(t => t.status === 'open' || t.status === 'in_progress').length
+})
+
+const leaseProgress = computed(() => {
+  const contract = tenantActiveContract.value
+  if (!contract) return 0
+  const start = new Date(contract.start_date).getTime()
+  const end = new Date(contract.end_date).getTime()
+  const now = Date.now()
+  if (now <= start) return 0
+  if (now >= end) return 100
+  return Math.round(((now - start) / (end - start)) * 100)
+})
+
+const leaseRemainingMonths = computed(() => {
+  const contract = tenantActiveContract.value
+  if (!contract) return ''
+  const end = new Date(contract.end_date)
+  const now = new Date()
+  const yearsDiff = end.getFullYear() - now.getFullYear()
+  const monthsDiff = end.getMonth() - now.getMonth()
+  const totalMonths = yearsDiff * 12 + monthsDiff
+  if (totalMonths <= 0) return 'Ends this month'
+  if (totalMonths === 1) return '1 month left'
+  return `${totalMonths} months left`
+})
 
 const featuredProperty = computed(() => {
   if (!properties.value.length) return null
@@ -127,7 +170,8 @@ onMounted(async () => {
       fetches.push(
         fetchInvoices(),
         fetchTickets(),
-        fetchNotifications()
+        fetchNotifications(),
+        fetchContracts()
       )
     }
     await Promise.allSettled(fetches)
@@ -165,7 +209,260 @@ onUnmounted(destroyMap)
     </div>
 
     <template v-else>
-      <div class="dash-grid">
+      <!-- Tenant Dashboard Layout -->
+      <div v-if="isTenant" class="dash-grid tenant-dash-grid">
+        <!-- ═══ Left Column: Tenant Main Content (2/3 width) ═══ -->
+        <main class="dash-main">
+          <header class="dash-header">
+            <h1 class="dash-greeting">Welcome back, {{ authStore.user?.name }}</h1>
+            <p class="dash-subtitle">Manage your home, view invoices, and track maintenance requests.</p>
+          </header>
+
+          <!-- KPI Metrics Row -->
+          <section class="kpi-grid" aria-label="Key Performance Indicators">
+            <!-- Next Rent Due -->
+            <article class="kpi-card">
+              <div v-if="tenantNextInvoice" class="kpi-card__badge kpi-badge--amber" :class="{ 'kpi-badge--negative': tenantNextInvoice.status === 'overdue' }">
+                {{ tenantNextInvoice.status === 'overdue' ? 'Overdue' : 'Due Soon' }}
+              </div>
+              <div v-else class="kpi-card__badge kpi-badge--positive">Current</div>
+              <p class="kpi-card__label">Next Rent Due</p>
+              <h2 class="kpi-card__value tabular-nums">
+                {{ tenantNextInvoice ? formatIDR(tenantNextInvoice.amount) : 'All Paid' }}
+              </h2>
+              <p class="kpi-card__context">
+                {{ tenantNextInvoice ? `Due on ${formatDate(tenantNextInvoice.due_date)}` : 'No outstanding invoices' }}
+              </p>
+            </article>
+
+            <!-- Latest Payment Status -->
+            <article class="kpi-card">
+              <div v-if="tenantLatestInvoice" class="kpi-card__badge" :class="tenantLatestInvoice.status === 'paid' ? 'kpi-badge--positive' : (tenantLatestInvoice.status === 'overdue' ? 'kpi-badge--negative' : 'kpi-badge--amber')">
+                {{ tenantLatestInvoice.status }}
+              </div>
+              <div v-else class="kpi-card__badge kpi-badge--neutral">None</div>
+              <p class="kpi-card__label">Latest Invoice</p>
+              <h2 class="kpi-card__value tabular-nums">
+                {{ tenantLatestInvoice ? formatIDR(tenantLatestInvoice.amount) : 'Rp 0' }}
+              </h2>
+              <p class="kpi-card__context">
+                {{ tenantLatestInvoice ? `Billing month: ${tenantLatestInvoice.billing_month}` : 'No invoice record' }}
+              </p>
+            </article>
+
+            <!-- Open Support Tickets -->
+            <article class="kpi-card">
+              <div class="kpi-card__badge" :class="tenantOpenTicketsCount > 0 ? 'kpi-badge--amber' : 'kpi-badge--neutral'">
+                {{ tenantOpenTicketsCount > 0 ? 'Action Needed' : 'All Clear' }}
+              </div>
+              <p class="kpi-card__label">Active Tickets</p>
+              <h2 class="kpi-card__value tabular-nums">{{ tenantOpenTicketsCount }}</h2>
+              <p class="kpi-card__context">open & in progress</p>
+            </article>
+          </section>
+
+          <!-- My Lease Agreement Card -->
+          <section class="dash-widget widget--lease" aria-labelledby="widget-lease-title">
+            <div class="dash-widget__header">
+              <h2 id="widget-lease-title" class="dash-widget__title">My Lease Agreement</h2>
+              <span class="dash-widget__count" :class="tenantActiveContract ? 'badge--green' : 'badge--gray'">
+                {{ tenantActiveContract ? 'Active Lease' : 'No Contract' }}
+              </span>
+            </div>
+
+            <div v-if="!tenantActiveContract" class="widget-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="widget-empty__icon">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <p class="widget-empty__text">No active lease agreement found. Contact your property owner to register a contract.</p>
+            </div>
+            <div v-else class="lease-detail-card">
+              <div class="lease-header-info">
+                <div class="lease-property-meta">
+                  <h3 class="lease-property-name">{{ tenantActiveContract.property?.name }}</h3>
+                  <p class="lease-property-address">{{ tenantActiveContract.property?.address }}</p>
+                </div>
+                <button @click="downloadContractDocument(tenantActiveContract.id)" class="btn-primary btn-sm btn-download-contract">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; margin-right:6px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  Download PDF
+                </button>
+              </div>
+
+              <div class="lease-specs-grid">
+                <div class="spec-item">
+                  <span class="spec-label">Monthly Rent</span>
+                  <span class="spec-value">{{ formatIDR(tenantActiveContract.monthly_rent) }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Deposit Amount</span>
+                  <span class="spec-value">{{ formatIDR(tenantActiveContract.deposit_amount) }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Billing Date</span>
+                  <span class="spec-value">Day {{ tenantActiveContract.billing_date }} of every month</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Contract Period</span>
+                  <span class="spec-value">{{ formatDate(tenantActiveContract.start_date) }} - {{ formatDate(tenantActiveContract.end_date) }}</span>
+                </div>
+              </div>
+
+              <!-- Interactive Progress Slider Bar -->
+              <div class="lease-progress-wrap">
+                <div class="progress-labels">
+                  <span class="progress-label-start">Start: {{ formatDate(tenantActiveContract.start_date) }}</span>
+                  <span class="progress-label-remaining">{{ leaseRemainingMonths }}</span>
+                  <span class="progress-label-end">End: {{ formatDate(tenantActiveContract.end_date) }}</span>
+                </div>
+                <div class="progress-track" title="Lease Period Progress">
+                  <div class="progress-fill" :style="{ width: `${leaseProgress}%` }">
+                    <span class="progress-tooltip">{{ leaseProgress }}% elapsed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Open Tickets Tracker -->
+          <section class="dash-widget widget--tickets" aria-labelledby="widget-tickets-title">
+            <div class="dash-widget__header">
+              <h2 id="widget-tickets-title" class="dash-widget__title">Active Maintenance & Support Tickets</h2>
+              <button @click="router.push('/tickets/new')" class="btn-primary btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px; height:12px; margin-right:4px;">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+                File a ticket
+              </button>
+            </div>
+
+            <div v-if="tickets.length === 0" class="widget-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="widget-empty__icon">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <p class="widget-empty__text">No active support tickets found. If you have any repair requests or issues, submit one now.</p>
+            </div>
+            <div v-else class="tickets-timeline">
+              <div v-for="t in tickets.slice(0, 3)" :key="t.id" class="ticket-timeline-card" @click="router.push(`/tickets/${t.id}`)">
+                <div class="ticket-timeline-header">
+                  <span class="ticket-timeline-num">{{ t.ticket_number }}</span>
+                  <span class="badge" :class="`badge--${t.priority === 'high' ? 'red' : (t.priority === 'medium' ? 'amber' : 'gray')}`">
+                    {{ t.priority }}
+                  </span>
+                  <span class="badge" :class="{
+                    'badge--gray': t.status === 'open',
+                    'badge--amber': t.status === 'in_progress',
+                    'badge--green': t.status === 'resolved',
+                    'badge--indigo': t.status === 'closed',
+                  }">
+                    {{ t.status.replace('_', ' ') }}
+                  </span>
+                </div>
+                <div class="ticket-timeline-body">
+                  <h4 class="ticket-timeline-title">{{ t.title }}</h4>
+                  <p class="ticket-timeline-category">Category: <strong>{{ t.category }}</strong></p>
+                </div>
+                <div class="ticket-timeline-footer">
+                  <span class="ticket-timeline-time">Updated {{ formatTimeAgo(t.updated_at) }}</span>
+                  <span class="ticket-timeline-link">View Thread &rarr;</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <!-- ═══ Right Column: Tenant Supporting Content (1/3 width) ═══ -->
+        <aside class="dash-supporting">
+          <!-- Billing & Payments Timeline Widget -->
+          <section class="supporting-card supporting-card--billing">
+            <header class="supporting-card__head">
+              <h2 class="supporting-card__title">Billing & Payments</h2>
+            </header>
+            <p class="supporting-card__sub">Quick access to pay outstanding bills and download past statements.</p>
+
+            <div v-if="invoices.length === 0" class="widget-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="widget-empty__icon">
+                <rect x="3" y="4" width="18" height="16" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <p class="widget-empty__text">No invoice records found.</p>
+            </div>
+            <div v-else class="billing-timeline">
+              <div v-for="inv in invoices.slice(0, 4)" :key="inv.id" class="billing-timeline-item">
+                <div class="billing-timeline-info">
+                  <div class="billing-timeline-header">
+                    <span class="invoice-number">{{ inv.invoice_number }}</span>
+                    <span class="badge" :class="{
+                      'badge--green': inv.status === 'paid',
+                      'badge--red': inv.status === 'overdue',
+                      'badge--amber': inv.status === 'unpaid',
+                    }">{{ inv.status }}</span>
+                  </div>
+                  <div class="invoice-meta-sub">
+                    <span>Month: {{ inv.billing_month }}</span>
+                    <span class="invoice-timeline-amount">{{ formatIDR(inv.amount) }}</span>
+                  </div>
+                </div>
+                <div class="billing-timeline-action">
+                  <button v-if="inv.status === 'unpaid' || inv.status === 'overdue'" 
+                    @click="router.push(`/payments/${inv.id}`)" 
+                    class="btn-primary btn-sm btn-pay-timeline">
+                    Pay Now
+                  </button>
+                  <button v-else-if="inv.status === 'paid'" 
+                    @click="downloadInvoiceDocument(inv.id, inv.invoice_number)" 
+                    class="btn-ghost btn-sm btn-download-timeline"
+                    title="Download Receipt">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Latest Notifications Feed Widget -->
+          <section class="supporting-card widget--notifications" aria-labelledby="widget-notifications-title">
+            <div class="dash-widget__header" style="margin-bottom: 8px; padding-bottom: 8px;">
+              <h2 id="widget-notifications-title" class="supporting-card__title">Latest Notifications</h2>
+              <button v-if="unreadCount > 0" @click="markAllAsRead" class="btn-link">Mark all as read</button>
+            </div>
+
+            <div v-if="notifications.length === 0" class="widget-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="widget-empty__icon">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <p class="widget-empty__text">You are all caught up!</p>
+            </div>
+            <div v-else class="notifications-feed">
+              <div v-for="n in notifications.slice(0, 5)" :key="n.id" 
+                class="notification-item" 
+                :class="{ 'notification-item--unread': n.read_at === null }"
+                @click="handleNotificationClick(n)">
+                <span class="notification-dot" :class="`notification-dot--${n.type}`" />
+                <div class="notification-body">
+                  <p class="notification-text">{{ n.message || n.title }}</p>
+                  <span class="notification-time">{{ formatTimeAgo(n.created_at) }}</span>
+                </div>
+                <button v-if="n.read_at === null" @click.stop="markAsRead(n.id)" class="mark-read-btn" title="Mark as read">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <!-- Traditional Owner/Agent Dashboard Layout -->
+      <div v-else class="dash-grid">
         <!-- ═══ Left Column: Actionable Data & Lists (2/3 width) ═══ -->
         <main class="dash-main">
           <header class="dash-header">
@@ -1106,5 +1403,335 @@ onUnmounted(destroyMap)
   padding: 6px 12px;
   font-size: 0.75rem;
   border-radius: 8px;
+}
+
+/* Tenant Specific Dashboard Styles */
+.tenant-dash-grid {
+  /* Shares general grid layout with owner dashboard */
+}
+
+/* Lease widget styling */
+.lease-detail-card {
+  background: var(--g50);
+  border: 1px solid var(--g100);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lease-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.lease-property-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--g900);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.lease-property-address {
+  font-size: 0.8rem;
+  color: var(--g500);
+  margin: 4px 0 0;
+}
+
+.btn-download-contract {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  background: var(--g900);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-download-contract:hover {
+  background: var(--g700);
+  transform: translateY(-1px);
+}
+
+.btn-download-contract:active {
+  transform: translateY(0);
+}
+
+.lease-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  border-top: 1px dashed var(--g200);
+  border-bottom: 1px dashed var(--g200);
+  padding: 16px 0;
+}
+
+@media (max-width: 768px) {
+  .lease-specs-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--g400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.spec-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--g800);
+}
+
+/* Lease progress tracker */
+.lease-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--g500);
+  font-weight: 500;
+}
+
+.progress-label-remaining {
+  font-weight: 700;
+  color: var(--amber);
+  background: var(--amber-soft);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.progress-track {
+  height: 10px;
+  background: var(--g200);
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 999px;
+  position: relative;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-tooltip {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* Tickets Timeline section */
+.tickets-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .tickets-timeline {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ticket-timeline-card {
+  background: var(--g50);
+  border: 1px solid var(--g100);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.ticket-timeline-card:hover {
+  background: #fff;
+  border-color: var(--g200);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.ticket-timeline-card:active {
+  transform: translateY(0);
+}
+
+.ticket-timeline-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ticket-timeline-num {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ticket-timeline-body {
+  flex: 1;
+}
+
+.ticket-timeline-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--g900);
+  margin: 0;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-timeline-category {
+  font-size: 0.7rem;
+  color: var(--g400);
+  margin: 6px 0 0;
+}
+
+.ticket-timeline-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--g100);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.ticket-timeline-time {
+  font-size: 0.65rem;
+  color: var(--g400);
+}
+
+.ticket-timeline-link {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+/* Billing timeline styling */
+.billing-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.billing-timeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--g50);
+  border: 1px solid var(--g100);
+  border-radius: 10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.billing-timeline-item:hover {
+  background: #fff;
+  border-color: var(--g200);
+}
+
+.billing-timeline-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.billing-timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invoice-number {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--g800);
+}
+
+.invoice-meta-sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.68rem;
+  color: var(--g500);
+}
+
+.invoice-timeline-amount {
+  font-weight: 700;
+  color: var(--g900);
+}
+
+.btn-pay-timeline {
+  background: var(--amber);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-pay-timeline:hover {
+  background: #c88812;
+  transform: translateY(-1px);
+}
+
+.btn-download-timeline {
+  background: #fff;
+  border: 1px solid var(--g200);
+  color: var(--g600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-download-timeline:hover {
+  background: var(--g900);
+  color: #fff;
+  border-color: var(--g900);
 }
 </style>

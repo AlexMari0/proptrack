@@ -9,12 +9,21 @@ class ContractPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasRole('owner') || $user->hasRole('admin') || $user->hasRole('tenant');
     }
 
     public function view(User $user, Contract $contract): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        if ($user->hasRole('owner') || $user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('tenant')) {
+            $tenant = \App\Models\Tenant::where('email', $user->email)->first();
+            return $tenant && $contract->tenant_id === $tenant->id;
+        }
+
+        return false;
     }
 
     public function create(User $user): bool

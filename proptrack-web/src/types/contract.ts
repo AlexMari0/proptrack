@@ -10,6 +10,7 @@ export interface ContractTenant {
 export interface ContractProperty {
   id: string
   name: string
+  address?: string
 }
 
 export interface Contract {

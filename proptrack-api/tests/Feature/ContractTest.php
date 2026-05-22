@@ -103,8 +103,23 @@ test('unauthenticated user cannot access contracts', function () {
     $this->getJson('/api/v1/contracts')->assertStatus(401);
 });
 
-test('tenant role cannot list contracts', function () {
-    $this->actingAs(contractTenantUser())->getJson('/api/v1/contracts')->assertStatus(403);
+test('tenant role can list own contracts and gets filtered results', function () {
+    Bus::fake();
+    $tenantUser = contractTenantUser();
+    $tenant = contractMakeTenant(['email' => $tenantUser->email]);
+    $property = contractMakeProperty();
+    $contract1 = makeContract($tenant->id, $property->id);
+
+    // Create another contract for another tenant
+    $otherTenant = contractMakeTenant();
+    $otherContract = makeContract($otherTenant->id, $property->id);
+
+    $this->actingAs($tenantUser)
+        ->getJson('/api/v1/contracts')
+        ->assertStatus(200)
+        ->assertJsonStructure(['data', 'meta'])
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.id', $contract1->id);
 });
 
 // ─── Index ─────────────────────────────────────────────────────────────────────

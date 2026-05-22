@@ -114,8 +114,32 @@ test('unauthenticated user cannot access invoices', function () {
     $this->getJson('/api/v1/invoices')->assertStatus(401);
 });
 
-test('tenant role cannot list invoices', function () {
-    $this->actingAs(invoiceTenantUser())->getJson('/api/v1/invoices')->assertStatus(403);
+test('tenant role can list own invoices and gets filtered results', function () {
+    $tenantUser = invoiceTenantUser();
+    $tenant = Tenant::create([
+        'name'                    => 'Ani Wijaya',
+        'email'                   => $tenantUser->email,
+        'phone'                   => '081234567890',
+        'id_card_number'          => '1234567890123456',
+        'emergency_contact_name'  => 'Ibu Sari',
+        'emergency_contact_phone' => '081298765432',
+    ]);
+    
+    $property = invoiceMakeProperty();
+    $contract = invoiceMakeContract($tenant, $property);
+    $invoice1 = invoiceMakeInvoice($contract);
+    
+    // Create another invoice for a different tenant
+    $otherTenant = invoiceMakeTenant();
+    $otherContract = invoiceMakeContract($otherTenant, $property);
+    $invoice2 = invoiceMakeInvoice($otherContract);
+
+    $this->actingAs($tenantUser)
+        ->getJson('/api/v1/invoices')
+        ->assertStatus(200)
+        ->assertJsonStructure(['data', 'meta'])
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.id', $invoice1->id);
 });
 
 test('agent can view invoices', function () {
