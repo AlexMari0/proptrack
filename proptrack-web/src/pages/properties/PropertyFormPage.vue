@@ -104,254 +104,210 @@ const statusOptions: { label: string; value: PropertyStatus }[] = [
 </script>
 
 <template>
-  <div class="page">
-    <!-- Back -->
-    <button class="back-btn" @click="router.back()">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
+  <div class="page-content" style="max-width: 760px;">
+    <!-- Back Link -->
+    <button class="back-link" @click="router.back()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="m15 18-6-6 6-6"/>
       </svg>
       Back
     </button>
 
-    <div class="form-card">
-      <h1 class="form-card__title">{{ pageTitle }}</h1>
+    <div class="page-header" style="margin-bottom: 20px;">
+      <h1 class="page-title">{{ pageTitle }}</h1>
+    </div>
 
-      <!-- Loading (edit mode fetching property) -->
-      <div v-if="isLoading" class="form-loading">
-        <span class="spinner" />
-        <span>Loading property data…</span>
-      </div>
+    <!-- Server-side error -->
+    <div v-if="error" class="alert alert--error">{{ error }}</div>
 
-      <!-- Server-side error -->
-      <div v-if="error" class="alert alert--error">{{ error }}</div>
+    <div v-if="isLoading" class="shimmer" style="height: 380px; border-radius: 16px;" />
 
-      <form v-if="!isLoading" @submit.prevent="handleSubmit" novalidate>
+    <form v-else @submit.prevent="handleSubmit" novalidate>
+      <div class="card" style="margin-bottom: 24px;">
+        <p class="section-label">General details</p>
 
         <!-- Name -->
         <div class="field">
-          <label class="field__label" for="name">Property Name <span class="field__required">*</span></label>
+          <label class="form-label" for="name">Property Name <span style="color: #dc2626;">*</span></label>
           <input
             id="name"
             v-model="form.name"
             type="text"
-            class="field__input"
-            :class="{ 'field__input--error': errors.name }"
+            class="form-input"
+            :class="{ 'input-error': errors.name }"
             placeholder="e.g. Kos Harmoni"
           />
-          <span v-if="errors.name" class="field__error">{{ errors.name }}</span>
+          <span v-if="errors.name" class="form-error">{{ errors.name }}</span>
         </div>
 
         <!-- Address -->
         <div class="field">
-          <label class="field__label" for="address">Address <span class="field__required">*</span></label>
+          <label class="form-label" for="address">Address <span style="color: #dc2626;">*</span></label>
           <textarea
             id="address"
             v-model="form.address"
-            class="field__input field__textarea"
-            :class="{ 'field__input--error': errors.address }"
+            class="form-textarea"
+            :class="{ 'input-error': errors.address }"
             placeholder="e.g. Jl. Harmoni No. 12, Jakarta Pusat"
             rows="2"
           />
-          <span v-if="errors.address" class="field__error">{{ errors.address }}</span>
+          <span v-if="errors.address" class="form-error">{{ errors.address }}</span>
         </div>
 
         <!-- Type & Status row -->
         <div class="field-row">
           <div class="field">
-            <label class="field__label" for="type">Type <span class="field__required">*</span></label>
+            <label class="form-label" for="type">Type <span style="color: #dc2626;">*</span></label>
             <select
               id="type"
               v-model="form.type"
-              class="field__input field__select"
-              :class="{ 'field__input--error': errors.type }"
+              class="form-select"
+              :class="{ 'input-error': errors.type }"
             >
               <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
-            <span v-if="errors.type" class="field__error">{{ errors.type }}</span>
+            <span v-if="errors.type" class="form-error">{{ errors.type }}</span>
           </div>
 
           <div class="field">
-            <label class="field__label" for="status">Status <span class="field__required">*</span></label>
+            <label class="form-label" for="status">Status <span style="color: #dc2626;">*</span></label>
             <select
               id="status"
               v-model="form.status"
-              class="field__input field__select"
-              :class="{ 'field__input--error': errors.status }"
+              class="form-select"
+              :class="{ 'input-error': errors.status }"
             >
               <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
-            <span v-if="errors.status" class="field__error">{{ errors.status }}</span>
+            <span v-if="errors.status" class="form-error">{{ errors.status }}</span>
           </div>
         </div>
 
         <!-- Latitude & Longitude row -->
         <div class="field-row">
           <div class="field">
-            <label class="field__label" for="latitude">Latitude <span class="field__required">*</span></label>
+            <label class="form-label" for="latitude">Latitude <span style="color: #dc2626;">*</span></label>
             <input
               id="latitude"
               v-model="form.latitude"
               type="number"
               step="any"
-              class="field__input"
-              :class="{ 'field__input--error': errors.latitude }"
+              class="form-input"
+              :class="{ 'input-error': errors.latitude }"
               placeholder="-6.1751"
             />
-            <span v-if="errors.latitude" class="field__error">{{ errors.latitude }}</span>
+            <span v-if="errors.latitude" class="form-error">{{ errors.latitude }}</span>
           </div>
 
           <div class="field">
-            <label class="field__label" for="longitude">Longitude <span class="field__required">*</span></label>
+            <label class="form-label" for="longitude">Longitude <span style="color: #dc2626;">*</span></label>
             <input
               id="longitude"
               v-model="form.longitude"
               type="number"
               step="any"
-              class="field__input"
-              :class="{ 'field__input--error': errors.longitude }"
+              class="form-input"
+              :class="{ 'input-error': errors.longitude }"
               placeholder="106.8272"
             />
-            <span v-if="errors.longitude" class="field__error">{{ errors.longitude }}</span>
+            <span v-if="errors.longitude" class="form-error">{{ errors.longitude }}</span>
           </div>
         </div>
 
         <!-- Monthly Price -->
         <div class="field">
-          <label class="field__label" for="monthly_price">Monthly Price (IDR) <span class="field__required">*</span></label>
-          <div class="field__prefix-group">
-            <span class="field__prefix">Rp</span>
+          <label class="form-label" for="monthly_price">Monthly Price (IDR) <span style="color: #dc2626;">*</span></label>
+          <div class="prefix-group">
+            <span class="prefix-text">Rp</span>
             <input
               id="monthly_price"
               v-model="form.monthly_price"
               type="number"
               min="0"
-              class="field__input field__input--prefixed"
-              :class="{ 'field__input--error': errors.monthly_price }"
+              class="form-input form-input--prefixed"
+              :class="{ 'input-error': errors.monthly_price }"
               placeholder="1500000"
             />
           </div>
-          <span v-if="errors.monthly_price" class="field__error">{{ errors.monthly_price }}</span>
+          <span v-if="errors.monthly_price" class="form-error">{{ errors.monthly_price }}</span>
         </div>
 
         <!-- Description -->
-        <div class="field">
-          <label class="field__label" for="description">Description <span class="field__optional">(optional)</span></label>
+        <div class="field" style="margin-bottom: 0;">
+          <label class="form-label" for="description">Description <span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--g400);">(optional)</span></label>
           <textarea
             id="description"
             v-model="form.description"
-            class="field__input field__textarea"
+            class="form-textarea"
             placeholder="Describe the property, facilities, and location highlights…"
             rows="4"
           />
         </div>
+      </div>
 
-        <!-- Actions -->
-        <div class="form-actions">
-          <button type="button" class="btn btn--ghost" @click="router.back()">Cancel</button>
-          <button type="submit" class="btn btn--primary" :disabled="isSubmitting">
-            <span v-if="isSubmitting" class="spinner" />
-            {{ isEditMode ? 'Save Changes' : 'Create Property' }}
-          </button>
-        </div>
-      </form>
-    </div>
+      <!-- Actions -->
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn-primary" :disabled="isSubmitting">
+          <span v-if="isSubmitting" class="spinner" />
+          {{ isEditMode ? 'Save Changes' : 'Create Property' }}
+        </button>
+        <button type="button" class="btn-ghost" @click="router.back()">Cancel</button>
+      </div>
+    </form>
   </div>
 </template>
 
 <style scoped>
-.page { padding: 32px; max-width: 760px; margin: 0 auto; }
-
-.back-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: none; color: var(--color-text-muted);
-  font-size: 0.875rem; cursor: pointer; padding: 0; margin-bottom: 24px; transition: color 0.2s;
-}
-.back-btn:hover { color: var(--color-primary); }
-.back-btn svg { width: 18px; height: 18px; }
-
-/* Card */
-.form-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  padding: 32px;
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
 }
 
-.form-card__title { font-size: 1.4rem; font-weight: 700; color: var(--color-text); margin: 0 0 28px; }
-
-/* Loading */
-.form-loading { display: flex; align-items: center; gap: 12px; color: var(--color-text-muted); padding: 32px 0; }
-
-/* Fields */
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
-
-.field__label {
-  font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted);
-  text-transform: uppercase; letter-spacing: 0.05em;
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
-.field__required { color: #ef4444; }
-.field__optional { font-weight: 400; text-transform: none; letter-spacing: 0; }
-
-.field__input {
-  padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface-alt);
-  color: var(--color-text);
-  font-size: 0.9rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
+@media (max-width: 520px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
 }
 
-.field__input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-.field__input--error { border-color: #ef4444; }
-.field__input--error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
-
-.field__textarea { resize: vertical; min-height: 72px; }
-.field__select { cursor: pointer; }
-
-/* Prefix group */
-.field__prefix-group { position: relative; display: flex; align-items: center; }
-.field__prefix {
-  position: absolute; left: 14px;
-  font-size: 0.875rem; font-weight: 600;
-  color: var(--color-text-muted); pointer-events: none;
+.input-error {
+  border-color: #dc2626 !important;
 }
-.field__input--prefixed { padding-left: 38px; }
 
-.field__error { font-size: 0.78rem; color: #ef4444; }
-
-/* Two-column layout */
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
-
-/* Actions */
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; padding-top: 24px; border-top: 1px solid var(--color-border); }
-
-/* Buttons */
-.btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: 10px;
-  font-size: 0.875rem; font-weight: 600; cursor: pointer;
-  border: none; text-decoration: none; transition: all 0.2s;
+/* Prefix group for monthly price */
+.prefix-group {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
-.btn--primary { background: var(--color-primary); color: #fff; }
-.btn--primary:hover:not(:disabled) { background: var(--color-primary-hover); }
-.btn--ghost { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
-.btn--ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.prefix-text {
+  position: absolute;
+  left: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--g400);
+  pointer-events: none;
+}
+.form-input--prefixed {
+  padding-left: 36px;
+}
 
-/* Spinner */
 .spinner {
-  width: 16px; height: 16px;
-  border: 2px solid currentColor; border-top-color: transparent;
-  border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.alert { padding: 12px 16px; border-radius: 10px; font-size: 0.875rem; margin-bottom: 20px; }
-.alert--error { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>

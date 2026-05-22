@@ -148,10 +148,11 @@ const router = createRouter({
       component: () => import('@/pages/tickets/TicketDetailPage.vue'),
       meta: { requiresAuth: true },
     },
-    // Fallback route
+    // 404 — branded not found page
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/',
+      name: 'not-found',
+      component: () => import('@/pages/NotFoundPage.vue'),
     },
   ],
 })

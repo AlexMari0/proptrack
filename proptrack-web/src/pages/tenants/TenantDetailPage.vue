@@ -25,176 +25,190 @@ async function handleDelete() {
   if (!confirm(`Delete tenant "${selectedTenant.value?.name}"? This cannot be undone.`)) return
   await deleteTenant(tenantId.value)
 }
+
+const formatIDR = (v: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
 </script>
 
 <template>
-  <div class="page">
-    <button class="back-btn" @click="router.back()">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
-      </svg>
-      Back to Tenants
+  <div class="page-content">
+    <button class="back-link" @click="router.back()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      Back to tenants
     </button>
 
     <div v-if="error" class="alert alert--error">{{ error }}</div>
 
     <!-- Skeleton -->
-    <div v-if="isLoading" class="skeleton-wrap">
-      <div class="skeleton-header" />
-      <div class="skeleton-grid">
-        <div v-for="i in 6" :key="i" class="skeleton-card" />
+    <div v-if="isLoading" class="sk-wrap">
+      <div class="shimmer" style="height:80px;border-radius:14px;margin-bottom:20px" />
+      <div class="sk-grid">
+        <div v-for="i in 5" :key="i" class="shimmer" style="height:72px;border-radius:12px" />
       </div>
     </div>
 
-    <!-- Content -->
-    <div v-else-if="selectedTenant" class="detail">
+    <div v-else-if="selectedTenant">
       <!-- Header -->
-      <div class="detail__header">
-        <div class="detail__identity">
-          <div class="avatar">{{ selectedTenant.name.charAt(0).toUpperCase() }}</div>
+      <div class="page-header">
+        <div class="tenant-identity">
+          <div class="tenant-big-avatar" aria-hidden="true">{{ selectedTenant.name.charAt(0).toUpperCase() }}</div>
           <div>
-            <h1 class="detail__name">{{ selectedTenant.name }}</h1>
-            <p class="detail__email">{{ selectedTenant.email }}</p>
+            <h1 class="page-title">{{ selectedTenant.name }}</h1>
+            <p class="page-subtitle">{{ selectedTenant.email }}</p>
           </div>
         </div>
-
-        <div v-if="canManage" class="detail__actions">
-          <RouterLink
-            :to="{ name: 'tenant-edit', params: { id: selectedTenant.id } }"
-            class="btn btn--ghost"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
-            </svg>
+        <div v-if="canManage" style="display:flex;gap:10px">
+          <RouterLink :to="{ name: 'tenant-edit', params: { id: selectedTenant.id } }" class="btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </RouterLink>
-          <button v-if="canDelete" class="btn btn--danger" :disabled="isSubmitting" @click="handleDelete">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clip-rule="evenodd" />
-            </svg>
+          <button v-if="canDelete" class="btn-danger" :disabled="isSubmitting" @click="handleDelete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Delete
           </button>
         </div>
       </div>
 
       <!-- Info grid -->
-      <div class="info-grid">
-        <div class="info-card">
-          <span class="info-card__label">Phone</span>
-          <span class="info-card__value">{{ selectedTenant.phone }}</span>
+      <section class="card" style="margin-bottom:20px">
+        <p class="section-label">Contact information</p>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-item__label">Phone</span>
+            <span class="info-item__value">{{ selectedTenant.phone }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">KTP number</span>
+            <span class="info-item__value" style="font-family:monospace;letter-spacing:0.05em">{{ selectedTenant.id_card_number }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">Emergency contact</span>
+            <span class="info-item__value">{{ selectedTenant.emergency_contact_name || '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">Emergency phone</span>
+            <span class="info-item__value">{{ selectedTenant.emergency_contact_phone || '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">Registered</span>
+            <span class="info-item__value">{{ new Date(selectedTenant.created_at).toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' }) }}</span>
+          </div>
         </div>
-        <div class="info-card">
-          <span class="info-card__label">KTP Number</span>
-          <span class="info-card__value info-card__value--mono">{{ selectedTenant.id_card_number }}</span>
-        </div>
-        <div class="info-card">
-          <span class="info-card__label">Emergency Contact</span>
-          <span class="info-card__value">{{ selectedTenant.emergency_contact_name }}</span>
-        </div>
-        <div class="info-card">
-          <span class="info-card__label">Emergency Phone</span>
-          <span class="info-card__value">{{ selectedTenant.emergency_contact_phone }}</span>
-        </div>
-        <div class="info-card">
-          <span class="info-card__label">Registered</span>
-          <span class="info-card__value">
-            {{ new Date(selectedTenant.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}
-          </span>
-        </div>
-      </div>
+      </section>
 
       <!-- Active Contract -->
-      <div class="contract-section">
-        <h2 class="section-title">Active Contract</h2>
-
-        <div v-if="selectedTenant.active_contract" class="contract-card">
-          <div class="contract-card__row">
-            <span class="contract-card__label">Property</span>
-            <span class="contract-card__value">{{ selectedTenant.active_contract.property.name }}</span>
+      <section class="card">
+        <p class="section-label">Active contract</p>
+        <div v-if="selectedTenant.active_contract" class="contract-summary">
+          <div class="contract-row">
+            <span style="color:var(--g500);font-size:0.8rem">Property</span>
+            <span style="font-weight:600;color:var(--g900)">{{ selectedTenant.active_contract.property.name }}</span>
           </div>
-          <div class="contract-card__row">
-            <span class="contract-card__label">Period</span>
-            <span class="contract-card__value">
-              {{ selectedTenant.active_contract.start_date }} → {{ selectedTenant.active_contract.end_date }}
-            </span>
+          <div class="contract-row">
+            <span style="color:var(--g500);font-size:0.8rem">Period</span>
+            <span>{{ selectedTenant.active_contract.start_date }} → {{ selectedTenant.active_contract.end_date }}</span>
           </div>
-          <div class="contract-card__row">
-            <span class="contract-card__label">Monthly Rent</span>
-            <span class="contract-card__value contract-card__value--price">
-              {{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedTenant.active_contract.monthly_rent) }}
-            </span>
+          <div class="contract-row">
+            <span style="color:var(--g500);font-size:0.8rem">Monthly rent</span>
+            <span class="tabular-nums" style="font-weight:700;color:var(--amber)">{{ formatIDR(selectedTenant.active_contract.monthly_rent) }}</span>
           </div>
-          <span class="badge badge--active">Active</span>
+          <span class="badge badge--green" style="align-self:flex-start">Active</span>
         </div>
-
         <div v-else class="no-contract">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75-6.75a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z" clip-rule="evenodd" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--g300)" aria-hidden="true">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
           </svg>
-          <p>No active contract</p>
-          <span class="no-contract__hint">Contracts will be linked in Phase 2.3</span>
+          <p style="margin:0;font-size:0.875rem;color:var(--g500)">No active contract</p>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-.page { padding: 32px; max-width: 900px; margin: 0 auto; }
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
 
-.back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: var(--color-text-muted); font-size: 0.875rem; cursor: pointer; padding: 0; margin-bottom: 24px; transition: color 0.2s; }
-.back-btn:hover { color: var(--color-primary); }
-.back-btn svg { width: 18px; height: 18px; }
+.tenant-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
 
-/* Header */
-.detail__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
-.detail__identity { display: flex; align-items: center; gap: 16px; }
-.avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), #818cf8); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; color: #fff; flex-shrink: 0; }
-.detail__name { font-size: 1.5rem; font-weight: 700; color: var(--color-text); margin: 0 0 4px; }
-.detail__email { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; }
-.detail__actions { display: flex; gap: 10px; }
+.tenant-big-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--g900);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
 
-/* Info grid */
-.info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-bottom: 32px; }
-.info-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.info-card__label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); }
-.info-card__value { font-size: 0.9rem; color: var(--color-text); font-weight: 500; }
-.info-card__value--mono { font-family: monospace; font-size: 0.85rem; letter-spacing: 0.05em; }
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
 
-/* Contract section */
-.section-title { font-size: 1rem; font-weight: 600; color: var(--color-text); margin: 0 0 14px; }
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 
-.contract-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-.contract-card__row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.contract-card__label { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }
-.contract-card__value { font-size: 0.9rem; color: var(--color-text); font-weight: 500; }
-.contract-card__value--price { font-size: 1rem; font-weight: 700; color: var(--color-primary); }
+.info-item__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--g400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
-.badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 12px; border-radius: 20px; align-self: flex-start; }
-.badge--active { background: rgba(34,197,94,0.15); color: #22c55e; }
+.info-item__value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--g700);
+}
 
-.no-contract { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 24px; background: var(--color-surface); border: 1px dashed var(--color-border); border-radius: 14px; text-align: center; color: var(--color-text-muted); }
-.no-contract svg { width: 40px; height: 40px; opacity: 0.3; }
-.no-contract p { margin: 0; font-size: 0.9rem; }
-.no-contract__hint { font-size: 0.75rem; opacity: 0.6; }
+.contract-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
 
-/* Skeletons */
-.skeleton-wrap { display: flex; flex-direction: column; gap: 24px; }
-.skeleton-header { height: 80px; border-radius: 14px; }
-.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.skeleton-card { height: 80px; border-radius: 12px; }
-.skeleton-header, .skeleton-card { background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
-@keyframes shimmer { to { background-position: -200% 0; } }
+.contract-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--g100);
+}
 
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all 0.2s; }
-.btn svg { width: 16px; height: 16px; }
-.btn--ghost { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
-.btn--ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.btn--danger { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
-.btn--danger:hover { background: rgba(239,68,68,0.2); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.contract-row:last-of-type { border-bottom: none; }
 
-.alert { padding: 12px 16px; border-radius: 10px; font-size: 0.875rem; margin-bottom: 20px; }
-.alert--error { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+.no-contract {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  background: var(--g50);
+  border: 1px dashed var(--g200);
+  border-radius: 10px;
+  text-align: center;
+  margin-top: 12px;
+}
 </style>
