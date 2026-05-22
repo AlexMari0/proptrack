@@ -38,6 +38,10 @@ class InvoiceController extends Controller
             $query->where('tenant_id', $request->tenant_id);
         }
 
+        if ($request->filled('contract_id')) {
+            $query->where('contract_id', $request->contract_id);
+        }
+
         if ($request->filled('month')) {
             $query->where('billing_month', $request->month);
         }

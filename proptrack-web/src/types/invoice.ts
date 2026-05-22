@@ -58,6 +58,7 @@ export interface InvoiceFilters {
   status: InvoiceStatus | ''
   property_id: string
   tenant_id: string
+  contract_id?: string
   month: string           // "YYYY-MM" or ''
   page: number
   per_page: number

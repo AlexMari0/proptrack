@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContract } from '@/composables/useContract'
 import { useAuthStore } from '@/stores/auth'
+import { invoiceService } from '@/services/invoiceService'
+import InvoiceCard from '@/components/payment/InvoiceCard.vue'
+import type { Invoice } from '@/types/invoice'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,16 +29,65 @@ const statusLabel = computed(() => {
 const formatIDR = (v: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
 
-onMounted(() => fetchContract(route.params.id as string))
+const formatDate = (dateStr: string | null | undefined) => {
+  if (!dateStr) return ''
+  const normalized = dateStr.includes('-') && !dateStr.includes('T') ? dateStr.replace(/-/g, '/') : dateStr
+  return new Date(normalized).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+const invoices = ref<Invoice[]>([])
+const isInvoicesLoading = ref(false)
+
+async function fetchInvoices() {
+  if (!selectedContract.value) return
+  isInvoicesLoading.value = true
+  try {
+    const res = await invoiceService.list({ contract_id: selectedContract.value.id, per_page: 50 })
+    invoices.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch contract invoices:', err)
+  } finally {
+    isInvoicesLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchContract(route.params.id as string)
+  await fetchInvoices()
+})
 
 async function handleTerminate() {
   if (!confirm('Terminate this contract? This cannot be undone.')) return
   const ok = await terminateContract(route.params.id as string)
-  if (ok) await fetchContract(route.params.id as string)
+  if (ok) {
+    await fetchContract(route.params.id as string)
+    await fetchInvoices()
+  }
 }
 
 async function handleDownload() {
   await downloadDocument(route.params.id as string)
+}
+
+async function handleSendInvoice(id: string) {
+  if (!confirm('Send payment reminder notification to tenant?')) return
+  try {
+    await invoiceService.send(id)
+    alert('Payment reminder sent successfully!')
+    await fetchInvoices()
+  } catch (err) {
+    console.error('Failed to send invoice reminder:', err)
+    alert('Failed to send payment reminder.')
+  }
+}
+
+async function handleDownloadInvoice(id: string, invoiceNumber: string) {
+  try {
+    await invoiceService.downloadDocument(id, invoiceNumber)
+  } catch (err) {
+    console.error('Failed to download invoice PDF:', err)
+    alert('Failed to download invoice PDF.')
+  }
 }
 </script>
 
@@ -64,7 +116,6 @@ async function handleDownload() {
           <h1 class="page-title">
             {{ selectedContract.tenant.name }} → {{ selectedContract.property.name }}
           </h1>
-          <p class="page-subtitle" style="font-family:monospace;font-size:0.75rem">{{ selectedContract.id }}</p>
         </div>
         <div v-if="canManage" style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-ghost" :disabled="isSubmitting" @click="handleDownload">
@@ -106,7 +157,7 @@ async function handleDownload() {
           </div>
           <div class="info-item">
             <span class="info-item__label">Contract period</span>
-            <span style="font-size:0.875rem;color:var(--g700)">{{ selectedContract.start_date }} → {{ selectedContract.end_date }}</span>
+            <span style="font-size:0.875rem;color:var(--g700)">{{ formatDate(selectedContract.start_date) }} → {{ formatDate(selectedContract.end_date) }}</span>
           </div>
           <div class="info-item">
             <span class="info-item__label">Billing date</span>
@@ -114,14 +165,36 @@ async function handleDownload() {
           </div>
           <div v-if="selectedContract.terminated_at" class="info-item" style="background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2);border-radius:10px;padding:12px">
             <span class="info-item__label" style="color:#dc2626">Terminated on</span>
-            <span style="font-size:0.875rem;color:#dc2626;font-weight:600">{{ new Date(selectedContract.terminated_at).toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' }) }}</span>
+            <span style="font-size:0.875rem;color:#dc2626;font-weight:600">{{ formatDate(selectedContract.terminated_at) }}</span>
           </div>
           <div class="info-item">
             <span class="info-item__label">Created</span>
-            <span style="font-size:0.875rem;color:var(--g500)">{{ new Date(selectedContract.created_at).toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' }) }}</span>
+            <span style="font-size:0.875rem;color:var(--g500)">{{ formatDate(selectedContract.created_at) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">Contract ID</span>
+            <span style="font-family:monospace;font-size:0.75rem;color:var(--g400)">{{ selectedContract.id }}</span>
           </div>
         </div>
       </div>
+
+      <!-- Invoice History -->
+      <section class="card" style="margin-top:20px">
+        <p class="section-label">Invoice History</p>
+        <div v-if="isInvoicesLoading" class="invoice-list">
+          <div v-for="i in 3" :key="i" class="shimmer" style="height:96px;border-radius:16px;" />
+        </div>
+        <div v-else-if="invoices.length === 0" class="no-invoices">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--g300)" aria-hidden="true">
+            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/>
+            <path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/>
+          </svg>
+          <p style="margin:0;font-size:0.875rem;color:var(--g500)">No invoices found for this contract</p>
+        </div>
+        <div v-else class="invoice-list">
+          <InvoiceCard v-for="invoice in invoices" :key="invoice.id" :invoice="invoice" :show-actions="canManage" @send="handleSendInvoice" @download="handleDownloadInvoice" />
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -141,4 +214,24 @@ async function handleDownload() {
 .info-item__label { font-size: 0.7rem; font-weight: 600; color: var(--g400); text-transform: uppercase; letter-spacing: 0.04em; }
 .info-link { font-size: 0.875rem; font-weight: 600; color: var(--amber); text-decoration: none; }
 .info-link:hover { text-decoration: underline; }
+
+.invoice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.no-invoices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  background: var(--g50);
+  border: 1px dashed var(--g200);
+  border-radius: 10px;
+  text-align: center;
+  margin-top: 12px;
+}
 </style>

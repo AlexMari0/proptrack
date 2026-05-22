@@ -7,6 +7,7 @@ export const invoiceService = {
     if (filters.status)      params.status      = filters.status
     if (filters.property_id) params.property_id = filters.property_id
     if (filters.tenant_id)   params.tenant_id   = filters.tenant_id
+    if (filters.contract_id) params.contract_id = filters.contract_id
     if (filters.month)       params.month       = filters.month
     if (filters.page)        params.page        = filters.page
     if (filters.per_page)    params.per_page    = filters.per_page
