@@ -57,3 +57,7 @@ proptrack-api/coverage/
 
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 *.local
+AGENT.md
+GEMINI.md
+PropTrack-Implementation-Plan.md
+QA_Test_Plan_Prompt_v2.md

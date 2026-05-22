@@ -19,11 +19,32 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
         ]);
 
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Admin User
+        $admin = User::factory()->create([
+            'name' => 'PropTrack Admin',
+            'email' => 'admin@proptrack.com',
         ]);
+        $admin->assignRole('admin');
+
+        // Property Owner User
+        $owner = User::factory()->create([
+            'name' => 'Property Owner',
+            'email' => 'owner@proptrack.com',
+        ]);
+        $owner->assignRole('owner');
+
+        // Agent User
+        $agent = User::factory()->create([
+            'name' => 'Support Agent',
+            'email' => 'agent@proptrack.com',
+        ]);
+        $agent->assignRole('agent');
+
+        // Tenant User
+        $tenant = User::factory()->create([
+            'name' => 'Tenant Resident',
+            'email' => 'tenant@proptrack.com',
+        ]);
+        $tenant->assignRole('tenant');
     }
 }
