@@ -14,6 +14,10 @@ const canManage = computed(() =>
   authStore.user?.roles?.some((r) => ['owner', 'admin'].includes(r)) ?? false,
 )
 
+const isTenant = computed(() =>
+  authStore.user?.roles?.includes('tenant') ?? false,
+)
+
 const formattedAmount = computed(() => {
   if (!selectedInvoice.value) return ''
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedInvoice.value.amount)
@@ -76,7 +80,7 @@ async function handleDownload() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Send reminder
           </button>
-          <RouterLink v-if="isActionable" class="btn-primary" :to="{ name: 'payment', params: { id: selectedInvoice.id } }">
+          <RouterLink v-if="isActionable && isTenant" class="btn-primary" :to="{ name: 'payment', params: { id: selectedInvoice.id } }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
             Pay now
           </RouterLink>
