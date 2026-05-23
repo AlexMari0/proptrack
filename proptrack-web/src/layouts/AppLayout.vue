@@ -6,6 +6,8 @@ import { useTicket } from '@/composables/useTicket'
 import { useInvoice } from '@/composables/useInvoice'
 import { useNotification } from '@/composables/useNotification'
 import NavbarNotificationBell from '@/components/layout/NavbarNotificationBell.vue'
+import AppLogo from '@/components/layout/AppLogo.vue'
+
 
 const authStore = useAuthStore()
 const { logout, loading: authLoading } = useAuth()
@@ -54,7 +56,7 @@ onMounted(async () => {
       <div class="sidebar__top">
         <div class="sidebar__logo">
           <RouterLink to="/dashboard" class="logo-link" aria-label="PropTrack home">
-            <span class="logo-mark">P</span>
+            <AppLogo :size="isExpanded ? 36 : 32" class="logo-mark-component" />
             <span class="logo-text">PropTrack</span>
           </RouterLink>
         </div>
@@ -248,27 +250,13 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.logo-mark {
-  display: flex;
-  width: 32px; /* Adjusted to 32px when collapsed to avoid overlap with border toggle button */
-  height: 32px;
-  background: var(--g900);
-  color: #fff;
-  border-radius: 10px;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1rem;
-  letter-spacing: -0.03em;
-  transition: transform 0.15s, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), font-size 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+.logo-mark-component {
+  transition: transform 0.15s, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
 }
-.sidebar--expanded .logo-mark {
-  width: 36px; /* Dynamically expands to 36px in expanded state */
-  height: 36px;
-  font-size: 1.05rem;
+.logo-mark-component:hover {
+  transform: scale(1.06);
 }
-.logo-mark:hover { transform: scale(1.06); }
 
 .logo-text {
   font-weight: 800;

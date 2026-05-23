@@ -5,6 +5,8 @@ import { useForm, useField } from 'vee-validate'
 import * as z from 'zod'
 import { useAuth } from '@/composables/useAuth'
 import type { RegisterPayload } from '@/types/auth'
+import AppLogo from '@/components/layout/AppLogo.vue'
+
 
 const router = useRouter()
 const { register, loading, error: apiError } = useAuth()
@@ -90,11 +92,9 @@ const onSubmit = handleSubmit(async (values) => {
 
     <div class="w-full max-w-md z-10">
       <!-- Logo and Header -->
-      <div class="text-center mb-8">
-        <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-g900 to-g700 items-center justify-center shadow-md mb-4 transition-transform hover:scale-105 duration-300">
-          <span class="text-[#f8f6f2] font-extrabold text-2xl">P</span>
-        </div>
-        <h1 class="text-3xl font-extrabold tracking-tight text-g900 mb-2">Create Account</h1>
+      <div class="text-center mb-8 flex flex-col items-center">
+        <AppLogo :size="48" show-text />
+        <h1 class="text-3xl font-extrabold tracking-tight text-g900 mb-2 mt-6">Create Account</h1>
         <p class="text-g500 text-sm font-medium">Join PropTrack today and manage properties seamlessly</p>
       </div>
 
