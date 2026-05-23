@@ -88,4 +88,40 @@ class AuthController extends Controller
             'message' => 'Success',
         ]);
     }
+
+    /**
+     * Update the authenticated user's profile.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $oldEmail = $user->email;
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        // Sync with Tenant profile if the user is a tenant
+        if ($user->hasRole('tenant') && $oldEmail !== $user->email) {
+            \App\Models\Tenant::where('email', $oldEmail)->update([
+                'email' => $user->email,
+            ]);
+        }
+
+        return response()->json([
+            'data' => new UserResource($user),
+            'message' => 'Profile updated successfully',
+        ]);
+    }
 }

@@ -146,9 +146,11 @@ onMounted(async () => {
           <p class="topbar__route">{{ authStore.user?.name }}</p>
         </div>
         <div class="topbar__right">
-          <div class="topbar__avatar" aria-hidden="true">
-            {{ authStore.user?.name?.[0]?.toUpperCase() || 'U' }}
-          </div>
+          <RouterLink to="/profile" class="topbar__avatar-link" aria-label="View profile">
+            <div class="topbar__avatar" aria-hidden="true">
+              {{ authStore.user?.name?.[0]?.toUpperCase() || 'U' }}
+            </div>
+          </RouterLink>
         </div>
       </header>
 
@@ -547,6 +549,21 @@ onMounted(async () => {
   font-size: 0.7rem;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.topbar__avatar-link {
+  text-decoration: none;
+  display: inline-block;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.topbar__avatar-link:hover {
+  transform: scale(1.06);
+  opacity: 0.9;
+}
+
+.topbar__avatar-link:active {
+  transform: scale(0.95);
 }
 
 /* ─── Main slot area ─────────────────────────────────────────────────────────── */

@@ -4,6 +4,7 @@ import type {
   LoginPayload,
   AuthResponse,
   UserResponse,
+  UpdateProfilePayload,
 } from '@/types/auth'
 
 export const authService = {
@@ -24,6 +25,11 @@ export const authService = {
 
   async me(): Promise<UserResponse> {
     const response = await api.get<UserResponse>('/api/v1/auth/me')
+    return response.data
+  },
+
+  async updateProfile(payload: UpdateProfilePayload): Promise<UserResponse> {
+    const response = await api.put<UserResponse>('/api/v1/auth/profile', payload)
     return response.data
   },
 }

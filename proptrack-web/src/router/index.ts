@@ -27,6 +27,12 @@ const router = createRouter({
       component: () => import('@/pages/DashboardPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('@/pages/auth/ProfilePage.vue'),
+      meta: { requiresAuth: true },
+    },
     // ─── Properties ───────────────────────────────────────────────────────────
     {
       path: '/properties',

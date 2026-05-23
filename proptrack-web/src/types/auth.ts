@@ -30,3 +30,10 @@ export interface LoginPayload {
   email: string
   password: string
 }
+
+export interface UpdateProfilePayload {
+  name: string
+  email: string
+  password?: string
+  password_confirmation?: string
+}

@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authService } from '@/services/authService'
-import type { LoginPayload, RegisterPayload } from '@/types/auth'
+import type { LoginPayload, RegisterPayload, UpdateProfilePayload } from '@/types/auth'
 
 export function useAuth() {
   const authStore = useAuthStore()
@@ -69,6 +69,21 @@ export function useAuth() {
     }
   }
 
+  const updateProfile = async (payload: UpdateProfilePayload) => {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await authService.updateProfile(payload)
+      authStore.setUser(response.data)
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Failed to update profile. Please try again.'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     loading,
     error,
@@ -76,6 +91,7 @@ export function useAuth() {
     register,
     logout,
     fetchProfile,
+    updateProfile,
     authStore,
   }
 }

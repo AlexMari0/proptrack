@@ -145,3 +145,107 @@ test('user can logout successfully', function () {
 
     $this->assertCount(0, $user->fresh()->tokens);
 });
+
+test('authenticated user can update profile details and password', function () {
+    $user = User::create([
+        'name' => 'Ahmad Rizal',
+        'email' => 'ahmad@example.com',
+        'password' => Hash::make('password123')
+    ]);
+    $user->assignRole('owner');
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    $response = $this->withHeader('Authorization', "Bearer $token")
+        ->putJson('/api/v1/auth/profile', [
+            'name' => 'Ahmad Rizal Updated',
+            'email' => 'ahmad.new@example.com',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('data.name', 'Ahmad Rizal Updated')
+        ->assertJsonPath('data.email', 'ahmad.new@example.com');
+
+    $this->assertTrue(Hash::check('newpassword123', $user->fresh()->password));
+});
+
+test('updating profile validates inputs correctly', function () {
+    $user = User::create([
+        'name' => 'Ahmad Rizal',
+        'email' => 'ahmad@example.com',
+        'password' => Hash::make('password123')
+    ]);
+    $user->assignRole('owner');
+
+    // Create another user to test email uniqueness
+    User::create([
+        'name' => 'Other User',
+        'email' => 'other@example.com',
+        'password' => Hash::make('password123')
+    ]);
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    // Test validation failures (empty name, invalid email, email exists, password mismatch)
+    $response = $this->withHeader('Authorization', "Bearer $token")
+        ->putJson('/api/v1/auth/profile', [
+            'name' => '',
+            'email' => 'invalid-email',
+            'password' => '123',
+            'password_confirmation' => 'mismatch',
+        ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['name', 'email', 'password']);
+
+    // Test unique email validation
+    $response = $this->withHeader('Authorization', "Bearer $token")
+        ->putJson('/api/v1/auth/profile', [
+            'name' => 'Ahmad Rizal',
+            'email' => 'other@example.com',
+        ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['email']);
+});
+
+test('tenant email update synchronizes with tenant profile email', function () {
+    $user = User::create([
+        'name' => 'Tenant User',
+        'email' => 'tenant@example.com',
+        'password' => Hash::make('password123')
+    ]);
+    $user->assignRole('tenant');
+
+    \App\Models\Tenant::create([
+        'name' => 'Tenant User',
+        'email' => 'tenant@example.com',
+        'phone' => '081234567891',
+        'id_card_number' => '3171123456789012',
+        'emergency_contact_name' => 'Emergency Name',
+        'emergency_contact_phone' => '081234567890',
+    ]);
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    $response = $this->withHeader('Authorization', "Bearer $token")
+        ->putJson('/api/v1/auth/profile', [
+            'name' => 'Updated Tenant Name',
+            'email' => 'new-tenant@example.com',
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('data.name', 'Updated Tenant Name')
+        ->assertJsonPath('data.email', 'new-tenant@example.com');
+
+    $this->assertDatabaseHas('users', [
+        'id' => $user->id,
+        'email' => 'new-tenant@example.com',
+    ]);
+
+    $this->assertDatabaseHas('tenants', [
+        'email' => 'new-tenant@example.com',
+    ]);
+});
