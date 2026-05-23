@@ -32,7 +32,7 @@ proptrack/
 
 #### Frontend (`proptrack-web`)
 *   **Core**: Vue 3 (Composition API) + Router 4 + Pinia (State Management)
-*   **Styling**: Modern Vanilla CSS with CSS Custom Properties and Tailwind CSS v4
+*   **Styling**: Modern Vanilla CSS with HSL CSS Custom Properties
 *   **Maps**: Vue Leaflet (interactive maps on property detail pages)
 *   **Build Tool**: Vite 6 + TypeScript (Strict Mode)
 *   **API Client**: Axios (configured with global bearer token injection and auto-handling of `401 Unauthorized` / `422 Unprocessable Entity`)
@@ -42,13 +42,14 @@ proptrack/
 ## 🌟 Feature Checklist
 
 - [x] **Secure Authentication**: Pinia + localStorage token persistence, auto-refresh profiles, and page router guards.
-- [x] **Properties Portfolio**: Full CRUD, coordinates mapping with interactive Leaflet maps, and photo gallery uploads.
-- [x] **Tenant Directory**: Complete resident database with Indonesian 16-digit KTP verification (including live digit counters).
-- [x] **Rental Agreements**: Bilingual (Bahasa Indonesia & English) rental contracts. Enforces business rules (e.g., *one active contract per property*).
-- [x] **Billing & Invoices**: Recurring monthly automated invoices with premium PDF exports.
+- [x] **Properties Portfolio**: Full CRUD, coordinates mapping with interactive Leaflet maps (geocoding + reverse geocoding), and photo gallery uploads.
+- [x] **Tenant Directory**: Complete resident database with Indonesian 16-digit KTP verification (including live digit counters) and middle-digits KTP privacy masking.
+- [x] **Rental Agreements**: Bilingual (Bahasa Indonesia & English) rental contracts. Enforces business rules (e.g., *one active contract per property*) and day dropdown constraints (1–28).
+- [x] **Billing & Invoices**: Recurring monthly automated invoices with premium PDF exports and overdue navigation badges.
 - [x] **Payment Gateway**: Seamless checkout integrating the **Midtrans Snap API modal** for real-time secure online transactions.
 - [x] **Financial Analysis**: Interactive dashboards with a 12-month analytics bar chart, metric aggregations, and PDF exports.
-- [x] **Complaint Ticketing**: Support resolution console allowing status transitions (`Open` $\rightarrow$ `In Progress` $\rightarrow$ `Resolved`), ticket claiming, and chronological thread comments.
+- [x] **Complaint Ticketing**: Support resolution console allowing status transitions (`Open` $\rightarrow$ `In Progress` $\rightarrow$ `Resolved` $\rightarrow$ `Closed`), ticket claiming, and chronological thread comments.
+- [x] **User Profile Settings**: Dedicated personal details and password change forms with local localized submission controls and standard secure show/hide eye toggles.
 - [x] **Real-time WebSockets**: Laravel Reverb broadcasting events (`NotificationSent`, `TicketStatusUpdated`, `PaymentConfirmed`) directly to active users.
 - [x] **Multichannel Notifications**: Real-time navbar bell alerts and database notifications.
 
@@ -72,8 +73,11 @@ cp .env.example .env
 php artisan key:generate
 
 # Database Migration & Seeding
-# This seeds the default roles and standard credentials:
+# This fresh migrates and seeds default roles, base accounts, and a high-fidelity real-world 
+# dataset (properties, contracts, timelines, tickets, comments, and notifications) for immediate inspection:
+# Accounts seeded:
 # - admin@proptrack.com / owner@proptrack.com / agent@proptrack.com / tenant@proptrack.com (password: 'password')
+# - tenant2@proptrack.com / tenant3@proptrack.com (password: 'password')
 php artisan migrate:fresh --seed
 
 # Start the Local Dev Server
@@ -108,7 +112,7 @@ Running the complete suite of backend tests:
 cd proptrack-api
 php artisan test
 ```
-*Current coverage: **127/127 tests passing** (30 property tests, 19 tenant tests, 15 contract tests, 16 invoice tests, 16 payment tests, 8 report tests, 9 ticket tests, 8 notification tests, 6 broadcasting tests).*
+*Current coverage: **134/134 tests passing** (30 property tests, 19 tenant tests, 15 contract tests, 16 invoice tests, 16 payment tests, 8 report tests, 9 ticket tests, 8 notification tests, 6 broadcasting tests, and 7 authentication/profile update tests).*
 
 ### Frontend Production Builds
 Validating type safety and bundle compiling:
@@ -129,7 +133,8 @@ Visual progress screenshots are captured and verified for premium quality inside
 ---
 
 ## 🎨 Design System & Aesthetics
-PropTrack stands out with a **highly customized, visual dark-mode interface**:
-*   Curated HSL variables mapping depth (`#070b13` backgrounds with transparent glassmorphic overlay cards).
-*   Dynamic gradients (using custom indigo and purple radiant glows).
-*   Modern, responsive flexbox/grid configurations with subtle hover micro-animations to keep the dashboard interactive and alive.
+PropTrack stands out with a **highly customized, visual warm-cream light-theme interface**:
+*   Curated HSL variables mapping depth (`#eaece7` outer backgrounds with crisp `#ffffff` card surfaces).
+*   Dynamic branding highlights using amber variables (`var(--amber)`) for high-contrast action focus.
+*   Modern typography utilizing the Google Font `Outfit` instead of system defaults.
+*   Responsive layouts with glassmorphism overlays and smooth hover micro-animations to keep the dashboard interactive and alive.
