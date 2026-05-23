@@ -20,6 +20,7 @@ const invoice     = ref<Invoice | null>(null)
 const state       = ref<PageState>('loading')
 const errorMsg    = ref('')
 const snapLoaded  = ref(false)
+const showMockModal = ref(false)
 const pollTimer   = ref<ReturnType<typeof setInterval> | null>(null)
 const pollCount   = ref(0)
 const MAX_POLLS   = 60 // 3 min at 3s intervals
@@ -89,6 +90,31 @@ onUnmounted(() => {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
+async function simulatePaymentSuccess() {
+  if (!invoice.value) return
+  showMockModal.value = false
+  state.value = 'processing'
+  startPolling()
+
+  try {
+    await paymentService.simulateWebhook({
+      order_id: invoice.value.invoice_number,
+      status_code: '200',
+      gross_amount: invoice.value.amount.toString(),
+      transaction_status: 'settlement',
+      mock: true
+    })
+  } catch (err) {
+    console.error('Simulated webhook failed:', err)
+  }
+}
+
+function simulatePaymentFailure() {
+  showMockModal.value = false
+  state.value = 'failed'
+  errorMsg.value = 'Simulated gateway rejection.'
+}
+
 async function loadInvoice() {
   try {
     const res = await invoiceService.get(invoiceId)
@@ -128,6 +154,12 @@ async function handlePay() {
     })
 
     const token = res.data.transaction_token
+
+    // Intercept mock tokens in local environment to show interactive developer simulation
+    if (token.startsWith('mock-snap-token-')) {
+      showMockModal.value = true
+      return
+    }
 
     if (!window.snap) {
       // Fallback: open redirect URL directly
@@ -311,8 +343,10 @@ function stopPolling() {
           :title="snapLoaded ? '' : 'Payment gateway loading…'"
           @click="handlePay"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8.5H1v6A1.5 1.5 0 002.5 16h15a1.5 1.5 0 001.5-1.5v-6zM3 13.25a.75.75 0 01.75-.75H6a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zm9.75-.75a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5h-2.5z" clip-rule="evenodd" />
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="midtrans-btn-logo" style="width: 18px; height: 18px; flex-shrink: 0; margin-right: 2px;">
+            <rect x="2" y="5" width="11" height="3" rx="1.5" fill="#18C6DF" />
+            <rect x="6" y="10.5" width="11" height="3" rx="1.5" fill="#8C5CFC" />
+            <rect x="10" y="16" width="11" height="3" rx="1.5" fill="#007AFF" />
           </svg>
           Pay Now via Midtrans
         </button>
@@ -323,6 +357,46 @@ function stopPolling() {
           </svg>
           Secured by Midtrans · Your payment info is never stored on our servers
         </p>
+      </div>
+    </div>
+
+    <!-- Local Developer Mock Simulation Modal -->
+    <div v-if="showMockModal && invoice" class="mock-modal-overlay">
+      <div class="mock-modal">
+        <header class="mock-modal__header">
+          <div class="mock-modal__logo-wrap">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px; flex-shrink: 0;">
+              <rect x="2" y="5" width="11" height="3" rx="1.5" fill="#18C6DF" />
+              <rect x="6" y="10.5" width="11" height="3" rx="1.5" fill="#8C5CFC" />
+              <rect x="10" y="16" width="11" height="3" rx="1.5" fill="#007AFF" />
+            </svg>
+            <span class="mock-modal__title">Local Payment Simulator</span>
+          </div>
+          <p class="mock-modal__sub">A mock Midtrans token was generated in local environment. Choose an action to simulate a gateway response:</p>
+        </header>
+
+        <div class="mock-modal__details">
+          <div class="mock-detail-row">
+            <span>Invoice Number</span>
+            <strong style="font-family: monospace;">{{ invoice.invoice_number }}</strong>
+          </div>
+          <div class="mock-detail-row">
+            <span>Total Amount</span>
+            <strong>{{ formattedAmount }}</strong>
+          </div>
+        </div>
+
+        <div class="mock-modal__actions">
+          <button class="mock-btn mock-btn--success" @click="simulatePaymentSuccess">
+            ✓ Simulate Success
+          </button>
+          <button class="mock-btn mock-btn--danger" @click="simulatePaymentFailure">
+            ✕ Simulate Failure
+          </button>
+          <button class="mock-btn mock-btn--cancel" @click="showMockModal = false; state = 'invoice'">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -346,8 +420,8 @@ function stopPolling() {
   gap: 14px;
   max-width: 420px;
 }
-.pay-page__feedback h2 { font-size: 1.4rem; font-weight: 700; color: var(--color-text); margin: 0; }
-.pay-page__feedback p  { font-size: 0.9rem; color: var(--color-text-muted); margin: 0; }
+.pay-page__feedback h2 { font-size: 1.4rem; font-weight: 700; color: var(--g900); margin: 0; }
+.pay-page__feedback p  { font-size: 0.9rem; color: var(--g500); margin: 0; }
 
 .feedback-icon {
   width: 64px; height: 64px; border-radius: 50%;
@@ -360,16 +434,16 @@ function stopPolling() {
 .feedback-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
 
 /* Processing spinner */
-.pay-page__feedback--processing h2 { color: var(--color-text); }
+.pay-page__feedback--processing h2 { color: var(--g900); }
 .spinner {
   width: 52px; height: 52px;
-  border: 4px solid var(--color-border);
-  border-top-color: var(--color-primary);
+  border: 4px solid var(--g200);
+  border-top-color: var(--amber);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.pay-page__poll-hint { font-size: 0.8rem; color: var(--color-text-muted); opacity: 0.7; }
+.pay-page__poll-hint { font-size: 0.8rem; color: var(--g400); opacity: 0.85; }
 
 /* ─── Skeleton ────────────────────────────────────────────────────────────── */
 .pay-page__skeleton { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 440px; }
@@ -389,7 +463,7 @@ function stopPolling() {
   font-size: 0.875rem; cursor: pointer; padding: 0; margin-bottom: 20px;
   transition: color 0.2s;
 }
-.back-btn:hover { color: var(--color-primary); }
+.back-btn:hover { color: var(--amber); }
 .back-btn svg { width: 18px; height: 18px; }
 
 /* ─── Payment card ────────────────────────────────────────────────────────── */
@@ -404,7 +478,7 @@ function stopPolling() {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 24px;
 }
-.pay-card__brand { font-size: 1rem; font-weight: 700; color: var(--color-primary); letter-spacing: -0.3px; }
+.pay-card__brand { font-size: 1rem; font-weight: 700; color: #ffffff; letter-spacing: -0.3px; }
 
 .pay-card__summary { text-align: center; margin-bottom: 20px; }
 .pay-card__invoice-number { font-family: monospace; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 6px; }
@@ -421,19 +495,30 @@ function stopPolling() {
 
 .pay-card__amount-row { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 20px; }
 .pay-card__amount-label { font-size: 0.875rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.pay-card__amount { font-size: 1.8rem; font-weight: 700; color: var(--color-primary); }
+.pay-card__amount { font-size: 1.8rem; font-weight: 700; color: var(--amber); }
 
 .pay-card__cta {
   width: 100%;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 14px 20px; border-radius: 12px; border: none;
-  background: linear-gradient(135deg, var(--color-primary), #7c3aed);
+  background: var(--g900);
   color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
+  transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s;
   margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(26, 23, 18, 0.15);
 }
-.pay-card__cta:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-.pay-card__cta:disabled { opacity: 0.5; cursor: not-allowed; }
+.pay-card__cta:hover:not(:disabled) { 
+  background-color: var(--g700); 
+  box-shadow: 0 6px 16px rgba(26, 23, 18, 0.22);
+  transform: translateY(-1px); 
+}
+.pay-card__cta:active:not(:disabled) { 
+  transform: scale(0.98) translateY(0); 
+}
+.pay-card__cta:disabled { 
+  opacity: 0.45; 
+  cursor: not-allowed; 
+}
 .pay-card__cta svg { width: 20px; height: 20px; }
 
 .pay-card__secure {
@@ -449,8 +534,134 @@ function stopPolling() {
   font-size: 0.875rem; font-weight: 600; cursor: pointer;
   border: none; transition: all 0.2s;
 }
-.btn--primary { background: var(--color-primary); color: #fff; }
-.btn--primary:hover { background: var(--color-primary-hover, #4f46e5); }
-.btn--ghost { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
-.btn--ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.btn--primary { background: var(--g900); color: #fff; }
+.btn--primary:hover { background: var(--g700); }
+.btn--ghost { background: transparent; border: 1px solid var(--g200); color: var(--g700); }
+.btn--ghost:hover { border-color: var(--amber); color: var(--amber); background: var(--g50); }
+
+/* ─── Mock Simulator Modal ───────────────────────────────────────────────── */
+.mock-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 29, 58, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mock-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  box-shadow: 0 20px 48px rgba(11, 29, 58, 0.22);
+  border: 1px solid var(--g200);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.mock-modal__header {
+  text-align: left;
+}
+
+.mock-modal__logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mock-modal__title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--g900);
+  letter-spacing: -0.02em;
+}
+
+.mock-modal__sub {
+  font-size: 0.8rem;
+  color: var(--g500);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mock-modal__details {
+  background: var(--g50);
+  border-radius: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--g100);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mock-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--g600);
+}
+
+.mock-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mock-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.15s;
+}
+
+.mock-btn:active {
+  transform: scale(0.98);
+}
+
+.mock-btn--success {
+  background: var(--status-green);
+  color: #ffffff;
+}
+.mock-btn--success:hover {
+  background: #16a34a;
+}
+
+.mock-btn--danger {
+  background: var(--status-red);
+  color: #ffffff;
+}
+.mock-btn--danger:hover {
+  background: #dc2626;
+}
+
+.mock-btn--cancel {
+  background: transparent;
+  color: var(--g600);
+  border: 1px solid var(--g200);
+}
+.mock-btn--cancel:hover {
+  background: var(--g50);
+  color: var(--g900);
+}
 </style>

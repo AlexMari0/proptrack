@@ -55,4 +55,18 @@ export const paymentService = {
       document.head.appendChild(script)
     })
   },
+
+  /**
+   * Simulate a payment success webhook locally.
+   * Only works in local dev environment with mock parameter.
+   */
+  async simulateWebhook(payload: {
+    order_id: string
+    status_code: string
+    gross_amount: string
+    transaction_status: string
+    mock: boolean
+  }): Promise<void> {
+    await api.post('/api/v1/payments/webhook/midtrans', payload)
+  },
 }

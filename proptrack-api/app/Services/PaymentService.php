@@ -83,6 +83,27 @@ class PaymentService
         ])->post("{$this->midtransBaseUrl()}/transactions", $payload);
 
         if ($response->failed()) {
+            // Graceful fallback for local development with placeholder/mock keys
+            if (app()->environment('local') && (
+                $this->midtransServerKey() === '' || 
+                $this->midtransServerKey() === 'mock' || 
+                env('MIDTRANS_MOCK', false) === true
+            )) {
+                Log::warning('Midtrans API failed in local environment with mock key. Gracefully falling back to a local mock transaction.');
+                $token = 'mock-snap-token-' . \Illuminate\Support\Str::uuid();
+                $redirectUrl = 'https://app.sandbox.midtrans.com/snap/v2/vtweb/' . $token;
+
+                $invoice->update([
+                    'payment_token'   => $token,
+                    'payment_gateway' => 'midtrans',
+                ]);
+
+                return [
+                    'transaction_token' => $token,
+                    'redirect_url'      => $redirectUrl,
+                ];
+            }
+
             Log::error('Midtrans transaction creation failed', [
                 'invoice_number' => $invoice->invoice_number,
                 'status'         => $response->status(),
@@ -118,6 +139,11 @@ class PaymentService
      */
     public function verifyMidtransSignature(array $payload): bool
     {
+        // Graceful mock bypass in local environment
+        if (app()->environment('local') && ($payload['mock'] ?? false) === true) {
+            return true;
+        }
+
         $signatureKey = hash('sha512',
             ($payload['order_id']     ?? '') .
             ($payload['status_code']  ?? '') .
