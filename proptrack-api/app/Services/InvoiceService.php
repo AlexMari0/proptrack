@@ -38,10 +38,7 @@ class InvoiceService
                     GenerateInvoicePdfJob::dispatch($invoice);
 
                     // Notify tenant
-                    $tenantUser = \App\Models\User::where('email', $contract->tenant->email)->first();
-                    if ($tenantUser) {
-                        $tenantUser->notify(new \App\Notifications\InvoiceCreatedNotification($invoice));
-                    }
+                    $contract->tenant->getNotifiable()->notify(new \App\Notifications\InvoiceCreatedNotification($invoice));
 
                     $created++;
                 }

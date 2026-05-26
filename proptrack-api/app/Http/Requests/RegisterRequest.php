@@ -9,7 +9,22 @@ class RegisterRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $currentUser = $this->user();
+        if (!$currentUser) {
+            return false;
+        }
+
+        $targetRole = $this->input('role');
+
+        if ($currentUser->hasRole('admin')) {
+            return true;
+        }
+
+        if ($currentUser->hasRole('owner')) {
+            return in_array($targetRole, ['agent', 'tenant']);
+        }
+
+        return false;
     }
 
     /**
@@ -23,7 +38,7 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', 'string', 'in:owner,agent,tenant'],
+            'role' => ['required', 'string', 'in:admin,owner,agent,tenant'],
         ];
     }
 }

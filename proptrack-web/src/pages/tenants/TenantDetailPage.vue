@@ -27,7 +27,9 @@ const isInvoicesLoading = ref(false)
 
 onMounted(async () => {
   await fetchTenant(tenantId.value)
-  await fetchInvoices()
+  if (canManage.value) {
+    await fetchInvoices()
+  }
 })
 
 async function fetchInvoices() {
@@ -155,7 +157,7 @@ function formatDate(dateStr: string): string {
       </section>
 
       <!-- Active Contract -->
-      <section class="card" style="margin-bottom:20px">
+      <section v-if="canManage" class="card" style="margin-bottom:20px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <p class="section-label" style="margin:0">Active contract</p>
           <span v-if="selectedTenant.active_contract" class="badge badge--green">Active</span>
@@ -184,7 +186,7 @@ function formatDate(dateStr: string): string {
       </section>
 
       <!-- Invoices / Payment History -->
-      <section class="card">
+      <section v-if="canManage" class="card">
         <p class="section-label">Invoices & Payment History</p>
         <div v-if="isInvoicesLoading" class="invoice-list">
           <div v-for="i in 3" :key="i" class="shimmer" style="height:96px;border-radius:16px;" />

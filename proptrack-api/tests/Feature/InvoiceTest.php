@@ -142,8 +142,19 @@ test('tenant role can list own invoices and gets filtered results', function () 
         ->assertJsonPath('data.0.id', $invoice1->id);
 });
 
-test('agent can view invoices', function () {
-    $this->actingAs(invoiceAgent())->getJson('/api/v1/invoices')->assertStatus(200);
+test('agent cannot view invoices', function () {
+    $this->actingAs(invoiceAgent())->getJson('/api/v1/invoices')->assertStatus(403);
+});
+
+test('agent cannot view single invoice', function () {
+    $tenant = invoiceMakeTenant();
+    $property = invoiceMakeProperty();
+    $contract = invoiceMakeContract($tenant, $property);
+    $invoice = invoiceMakeInvoice($contract);
+
+    $this->actingAs(invoiceAgent())
+        ->getJson("/api/v1/invoices/{$invoice->id}")
+        ->assertStatus(403);
 });
 
 // ─── Index / Filters ───────────────────────────────────────────────────────────

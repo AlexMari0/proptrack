@@ -96,10 +96,7 @@ class InvoiceController extends Controller
         $invoice->loadMissing(['contract', 'tenant', 'property']);
 
         // Notify tenant
-        $tenantUser = \App\Models\User::where('email', $invoice->tenant->email)->first();
-        if ($tenantUser) {
-            $tenantUser->notify(new \App\Notifications\InvoiceCreatedNotification($invoice));
-        }
+        $invoice->tenant->getNotifiable()->notify(new \App\Notifications\InvoiceCreatedNotification($invoice));
 
         return response()->json([
             'data'    => new InvoiceResource($invoice->fresh(['contract', 'tenant', 'property'])),

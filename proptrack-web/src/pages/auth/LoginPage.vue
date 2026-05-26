@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useForm, useField } from 'vee-validate'
 import * as z from 'zod'
 import { useAuth } from '@/composables/useAuth'
-import authBg from '@/assets/auth_background.png'
+import authBg from '@/assets/arsitektur-tropis.jpg'
 import AppLogo from '@/components/layout/AppLogo.vue'
 
 
@@ -146,10 +146,7 @@ const onSubmit = handleSubmit(async (values) => {
           </button>
         </form>
 
-        <footer class="card-footer">
-          <span class="footer-subtext">Are you new?</span>
-          <RouterLink to="/register" class="footer-link">Create an Account</RouterLink>
-        </footer>
+
       </main>
     </div>
   </div>

@@ -100,6 +100,16 @@ onMounted(async () => {
           <span class="sidebar__label">Reports</span>
           <span class="sidebar__tooltip">Reports</span>
         </RouterLink>
+        <RouterLink v-if="isOwnerOrAdmin()" to="/users/new" class="sidebar__link" aria-label="Create User">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <line x1="19" x2="19" y1="8" y2="14"/>
+            <line x1="16" x2="22" y1="11" y2="11"/>
+          </svg>
+          <span class="sidebar__label">Create User</span>
+          <span class="sidebar__tooltip">Create User</span>
+        </RouterLink>
       </nav>
 
       <div class="sidebar__bottom">

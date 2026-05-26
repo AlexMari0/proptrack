@@ -17,9 +17,7 @@ const router = createRouter({
     },
     {
       path: '/register',
-      name: 'register',
-      component: () => import('@/pages/auth/RegisterPage.vue'),
-      meta: { guestOnly: true },
+      redirect: '/login',
     },
     {
       path: '/dashboard',
@@ -31,6 +29,12 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: () => import('@/pages/auth/ProfilePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/users/new',
+      name: 'user-new',
+      component: () => import('@/pages/auth/RegisterPage.vue'),
       meta: { requiresAuth: true },
     },
     // ─── Properties ───────────────────────────────────────────────────────────

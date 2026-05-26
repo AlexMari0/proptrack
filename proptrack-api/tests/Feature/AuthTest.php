@@ -8,13 +8,17 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Seed Spatie roles since database is refreshed on each test
+    Role::create(['name' => 'admin']);
     Role::create(['name' => 'owner']);
     Role::create(['name' => 'agent']);
     Role::create(['name' => 'tenant']);
 });
 
-test('user can register successfully and is assigned the correct role', function () {
-    $response = $this->postJson('/api/v1/auth/register', [
+test('admin can register any role successfully', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $response = $this->actingAs($admin)->postJson('/api/v1/auth/register', [
         'name' => 'Budi Santoso',
         'email' => 'budi@example.com',
         'password' => 'password123',
@@ -42,13 +46,85 @@ test('user can register successfully and is assigned the correct role', function
     expect($user->hasRole('owner'))->toBeTrue();
 });
 
-test('registration validation fails for invalid data', function () {
+test('owner can register agent successfully', function () {
+    $owner = User::factory()->create();
+    $owner->assignRole('owner');
+
+    $response = $this->actingAs($owner)->postJson('/api/v1/auth/register', [
+        'name' => 'Support Agent Staff',
+        'email' => 'staff@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'role' => 'agent'
+    ]);
+
+    $response->assertStatus(201)
+        ->assertJsonPath('data.user.roles', ['agent']);
+});
+
+test('owner cannot register admin role', function () {
+    $owner = User::factory()->create();
+    $owner->assignRole('owner');
+
+    $response = $this->actingAs($owner)->postJson('/api/v1/auth/register', [
+        'name' => 'Another Admin',
+        'email' => 'admin2@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'role' => 'admin'
+    ]);
+
+    $response->assertStatus(403);
+});
+
+test('tenant and agent cannot register users', function () {
+    $tenantUser = User::factory()->create();
+    $tenantUser->assignRole('tenant');
+
+    $response = $this->actingAs($tenantUser)->postJson('/api/v1/auth/register', [
+        'name' => 'Subtenant',
+        'email' => 'sub@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'role' => 'tenant'
+    ]);
+    $response->assertStatus(403);
+
+    $agentUser = User::factory()->create();
+    $agentUser->assignRole('agent');
+
+    $response = $this->actingAs($agentUser)->postJson('/api/v1/auth/register', [
+        'name' => 'Subagent',
+        'email' => 'subagent@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'role' => 'agent'
+    ]);
+    $response->assertStatus(403);
+});
+
+test('unauthenticated guests cannot register', function () {
     $response = $this->postJson('/api/v1/auth/register', [
+        'name' => 'Guest User',
+        'email' => 'guest@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'role' => 'owner'
+    ]);
+
+    $response->assertStatus(401);
+});
+
+test('registration validation fails for invalid data', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $response = $this->actingAs($admin)->postJson('/api/v1/auth/register', [
         'name' => '',
         'email' => 'invalid-email',
         'password' => '123',
         'password_confirmation' => 'abc',
-        'role' => 'admin' // Not in owner, agent, tenant
+        'role' => 'invalid-role'
     ]);
 
     $response->assertStatus(422)

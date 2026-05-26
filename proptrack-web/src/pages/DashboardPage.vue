@@ -53,6 +53,14 @@ const tenantOpenTicketsCount = computed(() => {
   return tickets.value.filter(t => t.status === 'open' || t.status === 'in_progress').length
 })
 
+const openTicketsCount = computed(() => {
+  return tickets.value.filter(t => t.status === 'open' || t.status === 'in_progress').length
+})
+
+const resolvedTicketsCount = computed(() => {
+  return tickets.value.filter(t => t.status === 'resolved' || t.status === 'closed').length
+})
+
 const leaseProgress = computed(() => {
   const contract = tenantActiveContract.value
   if (!contract) return 0
@@ -480,25 +488,39 @@ onUnmounted(destroyMap)
               <p class="kpi-card__context">portfolio lifetime</p>
             </article>
 
-            <!-- Metric 2: Revenue -->
-            <article class="kpi-card">
+            <!-- Metric 2: Revenue (Owner/Admin) or Open Tickets (Agent) -->
+            <article v-if="isOwnerOrAdmin" class="kpi-card">
               <div class="kpi-card__badge kpi-badge--neutral">Stable</div>
               <p class="kpi-card__label">Collected Revenue</p>
               <h2 class="kpi-card__value tabular-nums">{{ reportData ? formatIDR(reportData.total_collected) : 'Rp 0' }}</h2>
               <p class="kpi-card__context">current month</p>
             </article>
+            <article v-else-if="isAgent" class="kpi-card">
+              <div class="kpi-card__badge kpi-badge--amber" :class="{ 'kpi-badge--negative': openTicketsCount > 0 }">
+                {{ openTicketsCount > 0 ? 'Urgent' : 'All Clear' }}
+              </div>
+              <p class="kpi-card__label">Open Support Tickets</p>
+              <h2 class="kpi-card__value tabular-nums">{{ openTicketsCount }}</h2>
+              <p class="kpi-card__context">needs attention</p>
+            </article>
 
-            <!-- Metric 3: Active Leases -->
-            <article class="kpi-card">
+            <!-- Metric 3: Active Leases (Owner/Admin) or Resolved Tickets (Agent) -->
+            <article v-if="isOwnerOrAdmin" class="kpi-card">
               <div class="kpi-card__badge kpi-badge--amber">92% occupancy</div>
               <p class="kpi-card__label">Active Leases</p>
               <h2 class="kpi-card__value tabular-nums">{{ activeContracts.length }}</h2>
               <p class="kpi-card__context">current billing cycle</p>
             </article>
+            <article v-else-if="isAgent" class="kpi-card">
+              <div class="kpi-card__badge kpi-badge--positive">Completed</div>
+              <p class="kpi-card__label">Resolved Tickets</p>
+              <h2 class="kpi-card__value tabular-nums">{{ resolvedTicketsCount }}</h2>
+              <p class="kpi-card__context">resolved & closed</p>
+            </article>
           </section>
 
-          <!-- Active Contracts List Widget -->
-          <section class="dash-widget widget--contracts" aria-labelledby="widget-contracts-title">
+          <!-- Active Contracts List Widget (Owner/Admin) -->
+          <section v-if="isOwnerOrAdmin" class="dash-widget widget--contracts" aria-labelledby="widget-contracts-title">
             <div class="dash-widget__header">
               <h2 id="widget-contracts-title" class="dash-widget__title">Contract Status</h2>
               <span class="dash-widget__count">{{ activeContracts.length }} Active</span>
@@ -535,6 +557,52 @@ onUnmounted(destroyMap)
                 </div>
                 <div class="contract-strip__action">
                   <button @click="router.push(`/contracts/${c.id}`)" class="btn-ghost btn-sm">Manage</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Active Tickets List Widget (Agent) -->
+          <section v-else-if="isAgent" class="dash-widget widget--contracts" aria-labelledby="widget-tickets-title">
+            <div class="dash-widget__header">
+              <h2 id="widget-tickets-title" class="dash-widget__title">Active Support Tickets</h2>
+              <span class="dash-widget__count">{{ openTicketsCount }} Active</span>
+            </div>
+
+            <div v-if="tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length === 0" class="widget-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="widget-empty__icon">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <p class="widget-empty__text">No active support tickets. You are all caught up!</p>
+            </div>
+            <div v-else class="contracts-list">
+              <div v-for="t in tickets.filter(t => t.status === 'open' || t.status === 'in_progress').slice(0, 5)" :key="t.id" class="contract-strip" @click="router.push(`/tickets/${t.id}`)" style="cursor: pointer;">
+                <div class="contract-strip__tenant" style="flex: 1.5;">
+                  <div class="tenant-avatar" :class="`badge--${t.priority === 'high' ? 'red' : (t.priority === 'medium' ? 'amber' : 'gray')}`">
+                    {{ t.priority === 'high' ? 'H' : (t.priority === 'medium' ? 'M' : 'L') }}
+                  </div>
+                  <div>
+                    <h3 class="tenant-name">{{ t.title }}</h3>
+                    <span style="font-size:0.75rem; color:var(--g400)">{{ t.ticket_number }}</span>
+                  </div>
+                </div>
+                <div class="contract-strip__property">
+                  <span class="strip-label">Property</span>
+                  <span class="strip-value">{{ t.property?.name }}</span>
+                </div>
+                <div class="contract-strip__dates">
+                  <span class="strip-label">Category</span>
+                  <span class="strip-value" style="text-transform: capitalize;">{{ t.category }}</span>
+                </div>
+                <div class="contract-strip__billing">
+                  <span class="badge" :class="{
+                    'badge--gray': t.status === 'open',
+                    'badge--amber': t.status === 'in_progress',
+                  }">{{ t.status.replace('_', ' ') }}</span>
+                  <span class="strip-label" style="font-size: 0.65rem; margin-top: 4px;">Status</span>
+                </div>
+                <div class="contract-strip__action">
+                  <button @click.stop="router.push(`/tickets/${t.id}`)" class="btn-ghost btn-sm">Resolve</button>
                 </div>
               </div>
             </div>
@@ -650,47 +718,59 @@ onUnmounted(destroyMap)
             </div>
           </section>
 
-          <!-- Tenants Occupancy Donut Gauge Card -->
-          <section class="supporting-card supporting-card--tenants">
+          <!-- Tenants Occupancy Donut Gauge Card (Owner/Admin) -->
+          <section v-if="isOwnerOrAdmin" class="supporting-card supporting-card--tenants">
             <header class="supporting-card__head">
-              <h2 class="supporting-card__title">
-                <span v-if="isOwnerOrAdmin || isAgent">Tenants Overview</span>
-                <span v-else>My Activity</span>
-              </h2>
-              <div class="avatar-stack" v-if="(isOwnerOrAdmin || isAgent) && tenants.length">
+              <h2 class="supporting-card__title">Tenants Overview</h2>
+              <div class="avatar-stack" v-if="tenants.length">
                 <div v-for="(t, i) in tenants.slice(0, 3)" :key="t.id" class="avatar-stack__item" :style="{ zIndex: 3 - i }">
                   {{ t.name?.[0]?.toUpperCase() || '?' }}
                 </div>
               </div>
             </header>
 
-            <p class="supporting-card__sub">
-              <span v-if="isOwnerOrAdmin || isAgent">Active tenant community across all properties.</span>
-              <span v-else>Your invoices and support tickets.</span>
-            </p>
+            <p class="supporting-card__sub">Active tenant community across all properties.</p>
 
             <div class="gauge-area" aria-hidden="true">
               <svg class="gauge-svg" viewBox="0 0 120 70">
                 <path d="M 10 65 A 50 50 0 0 1 110 65" fill="none" stroke="#f0ede7" stroke-width="10" stroke-linecap="round"/>
                 <path d="M 10 65 A 50 50 0 0 1 110 65" fill="none" stroke="#e09c1a" stroke-width="10" stroke-linecap="round"
-                  :stroke-dasharray="`${Math.min((isOwnerOrAdmin || isAgent ? tenants.length : invoices.length) / 20, 1) * 157.08} 157.08`"/>
+                  :stroke-dasharray="`${Math.min(tenants.length / 20, 1) * 157.08} 157.08`"/>
               </svg>
               <div class="gauge-label">
-                <span class="gauge-label__value tabular-nums">
-                  <span v-if="isOwnerOrAdmin || isAgent">{{ tenants.length }}</span>
-                  <span v-else>{{ invoices.length }}</span>
-                </span>
-                <span class="gauge-label__unit">
-                  <span v-if="isOwnerOrAdmin || isAgent">tenants registered</span>
-                  <span v-else>invoices loaded</span>
-                </span>
+                <span class="gauge-label__value tabular-nums">{{ tenants.length }}</span>
+                <span class="gauge-label__unit">tenants registered</span>
               </div>
             </div>
 
             <div class="gauge-actions">
-              <button v-if="isOwnerOrAdmin" @click="router.push('/tenants/new')" class="btn-primary btn-sm">Register tenant</button>
-              <button v-else-if="isTenant" @click="router.push('/tickets/create')" class="btn-primary btn-sm">File a ticket</button>
-              <button v-if="isOwnerOrAdmin || isAgent" @click="router.push('/tenants')" class="btn-ghost btn-sm">View all</button>
+              <button @click="router.push('/tenants/new')" class="btn-primary btn-sm">Register tenant</button>
+              <button @click="router.push('/tenants')" class="btn-ghost btn-sm">View all</button>
+            </div>
+          </section>
+
+          <!-- Tickets Overview Donut Gauge Card (Agent) -->
+          <section v-else-if="isAgent" class="supporting-card supporting-card--tenants">
+            <header class="supporting-card__head">
+              <h2 class="supporting-card__title">Tickets Overview</h2>
+            </header>
+
+            <p class="supporting-card__sub">Overview of your workload and active tickets.</p>
+
+            <div class="gauge-area" aria-hidden="true">
+              <svg class="gauge-svg" viewBox="0 0 120 70">
+                <path d="M 10 65 A 50 50 0 0 1 110 65" fill="none" stroke="#f0ede7" stroke-width="10" stroke-linecap="round"/>
+                <path d="M 10 65 A 50 50 0 0 1 110 65" fill="none" stroke="#dc2626" stroke-width="10" stroke-linecap="round"
+                  :stroke-dasharray="`${Math.min(openTicketsCount / (tickets.length || 1), 1) * 157.08} 157.08`"/>
+              </svg>
+              <div class="gauge-label">
+                <span class="gauge-label__value tabular-nums">{{ openTicketsCount }}</span>
+                <span class="gauge-label__unit">active tickets</span>
+              </div>
+            </div>
+
+            <div class="gauge-actions">
+              <button @click="router.push('/tickets')" class="btn-primary btn-sm" style="width: 100%;">Manage Tickets</button>
             </div>
           </section>
         </aside>

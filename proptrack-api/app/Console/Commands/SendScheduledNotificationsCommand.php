@@ -43,11 +43,8 @@ class SendScheduledNotificationsCommand extends Command
 
         $invoiceCount = 0;
         foreach ($invoices as $invoice) {
-            $tenantUser = User::where('email', $invoice->tenant->email)->first();
-            if ($tenantUser) {
-                $tenantUser->notify(new InvoiceDueNotification($invoice));
-                $invoiceCount++;
-            }
+            $invoice->tenant->getNotifiable()->notify(new InvoiceDueNotification($invoice));
+            $invoiceCount++;
         }
         $this->info("Dispatched {$invoiceCount} due invoice notification(s).");
 
@@ -63,10 +60,7 @@ class SendScheduledNotificationsCommand extends Command
         $contractCount = 0;
         foreach ($contracts as $contract) {
             // Notify tenant
-            $tenantUser = User::where('email', $contract->tenant->email)->first();
-            if ($tenantUser) {
-                $tenantUser->notify(new ContractExpiringNotification($contract, 'tenant'));
-            }
+            $contract->tenant->getNotifiable()->notify(new ContractExpiringNotification($contract, 'tenant'));
 
             // Notify owner
             $ownerUser = $contract->property->owner;
