@@ -3,10 +3,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTicket } from '@/composables/useTicket'
 import { propertyService } from '@/services/propertyService'
+import { useAuthStore } from '@/stores/auth'
 import type { CreateTicketPayload } from '@/types/ticket'
 import type { Property } from '@/types/property'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const { createTicket, isSubmitting, error } = useTicket()
 
 const properties = ref<Property[]>([])
@@ -21,7 +23,11 @@ const fieldErrors = reactive<Partial<Record<keyof CreateTicketPayload, string>>>
 async function loadProperties() {
   propertiesLoading.value = true
   try {
-    const response = await propertyService.list({ per_page: 100 })
+    const isTenant = authStore.user?.roles?.includes('tenant')
+    const response = await propertyService.list({
+      per_page: 100,
+      has_active_lease: isTenant ? true : undefined,
+    })
     properties.value = response.data
   } catch (err) {
     console.error('Failed to load properties for ticket creation:', err)

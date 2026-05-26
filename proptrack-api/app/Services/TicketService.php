@@ -45,7 +45,7 @@ class TicketService
             // Using lockForUpdate to ensure thread-safety
             $lastTicket = Ticket::whereYear('created_at', $year)
                 ->lockForUpdate()
-                ->orderBy('created_at', 'desc')
+                ->orderBy('ticket_number', 'desc')
                 ->first();
 
             $nextSequence = 1;

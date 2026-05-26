@@ -88,6 +88,16 @@ class DatabaseSeeder extends Seeder
         ]);
         $tenantUser3->assignRole('tenant');
 
+        // Tenant User 4 (Alex Mario Kristian)
+        $tenantUser4 = User::create([
+            'name' => 'Alex Mario Kristian',
+            'email' => 'alex@proptrack.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'),
+            'remember_token' => Str::random(10),
+        ]);
+        $tenantUser4->assignRole('tenant');
+
         // 2. Seed Tenant Profiles (in tenants table)
         $tenantProfile1 = Tenant::create([
             'name' => 'Tenant Resident',
@@ -114,6 +124,15 @@ class DatabaseSeeder extends Seeder
             'id_card_number' => '3171876543210987',
             'emergency_contact_name' => 'Hari Lestari',
             'emergency_contact_phone' => '081234567897',
+        ]);
+
+        $tenantProfile4 = Tenant::create([
+            'name' => 'Alex Mario Kristian',
+            'email' => 'alex@proptrack.com',
+            'phone' => '087770825227',
+            'id_card_number' => '3171098765432109',
+            'emergency_contact_name' => 'Emergency Contact',
+            'emergency_contact_phone' => '081234567891',
         ]);
 
         // 3. Seed Properties
@@ -165,6 +184,18 @@ class DatabaseSeeder extends Seeder
             'monthly_price' => 22000000,
         ]);
 
+        $property5 = Property::create([
+            'owner_id' => $owner->id,
+            'name' => 'Kos Harmoni',
+            'address' => 'Jl. Harmoni Raya No. 15, Jakarta Pusat',
+            'type' => 'kos',
+            'status' => 'occupied',
+            'latitude' => -6.170278,
+            'longitude' => 106.824167,
+            'description' => 'Clean, quiet, and premium student/worker room in central Jakarta.',
+            'monthly_price' => 1500000,
+        ]);
+
         // 4. Seed Contracts
         $contract1 = Contract::create([
             'tenant_id' => $tenantProfile1->id,
@@ -197,6 +228,17 @@ class DatabaseSeeder extends Seeder
             'deposit_amount' => 2800000,
             'billing_date' => 10,
             'status' => 'expired',
+        ]);
+
+        $contract4 = Contract::create([
+            'tenant_id' => $tenantProfile4->id,
+            'property_id' => $property5->id,
+            'start_date' => '2026-06-02',
+            'end_date' => '2026-07-02',
+            'monthly_rent' => 1500000,
+            'deposit_amount' => 1500000,
+            'billing_date' => 1,
+            'status' => 'active',
         ]);
 
         // 5. Seed Invoices

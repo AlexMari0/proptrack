@@ -64,12 +64,43 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <div class="gallery" @keydown="handleKeydown" tabindex="-1">
 
-    <!-- Empty state -->
-    <div v-if="photos.length === 0 && !canManage" class="gallery__empty">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-        <path fill-rule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clip-rule="evenodd" />
-      </svg>
-      <p>No photos yet</p>
+    <!-- Empty state (0 photos) -->
+    <div v-if="photos.length === 0" class="gallery__empty-grid">
+      <!-- Active Empty Card (Slot 1) -->
+      <div class="gallery__empty-tile gallery__empty-tile--active">
+        <div class="gallery__empty-content">
+          <div class="gallery__empty-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="gallery__empty-icon" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316A2.192 2.192 0 0 0 15.18 3.75H8.82c-.65 0-1.248.288-1.641.808l-.352.54Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </div>
+          <h3 class="gallery__empty-title">No property photos yet</h3>
+          <p class="gallery__empty-subtitle">Add photos to make your listing more appealing</p>
+          
+          <button
+            v-if="canManage"
+            class="gallery__empty-btn"
+            :disabled="isUploading"
+            @click="triggerFileInput"
+          >
+            <span v-if="isUploading" class="gallery__spinner" />
+            <template v-else>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="btn-icon" aria-hidden="true" style="width: 12px; height: 12px; margin-right: 3px;">
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              Upload First Photo
+            </template>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dashed Placeholder Cards (Slots 2, 3) -->
+      <div v-for="i in 2" :key="i" class="gallery__empty-tile gallery__empty-tile--placeholder">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" class="gallery__placeholder-icon" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375 0 1 1-.75 0 .375 0 0 1 .75 0Z" />
+        </svg>
+      </div>
     </div>
 
     <!-- Grid -->
@@ -106,23 +137,11 @@ function handleKeydown(event: KeyboardEvent) {
       >
         <span v-if="isUploading" class="gallery__spinner" />
         <template v-else>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z" clip-rule="evenodd" />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="gallery__upload-icon">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
           <span>Add Photo</span>
-        </template>
-      </button>
-    </div>
-
-    <!-- Upload button when no photos yet but can manage -->
-    <div v-if="photos.length === 0 && canManage" class="gallery__empty-upload">
-      <button class="gallery__upload-btn" :disabled="isUploading" @click="triggerFileInput">
-        <span v-if="isUploading" class="gallery__spinner" />
-        <template v-else>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" d="M11.47 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 01-1.06 1.06l-3.22-3.22V16.5a.75.75 0 01-1.5 0V4.81L8.03 8.03a.75.75 0 01-1.06-1.06l4.5-4.5zM3 15.75a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z" clip-rule="evenodd" />
-          </svg>
-          Upload First Photo
         </template>
       </button>
     </div>
@@ -177,16 +196,19 @@ function handleKeydown(event: KeyboardEvent) {
 
 <style scoped>
 /* Grid */
-.gallery__grid {
+.gallery__grid,
+.gallery__empty-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 280px));
+  gap: 16px;
 }
 
 .gallery__item {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: 10px;
+  width: 280px;
+  max-width: 100%;
+  height: 200px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
 }
@@ -204,8 +226,8 @@ function handleKeydown(event: KeyboardEvent) {
 
 .gallery__delete-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -218,6 +240,7 @@ function handleKeydown(event: KeyboardEvent) {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.2s;
+  z-index: 2;
 }
 
 .gallery__item:hover .gallery__delete-btn {
@@ -231,80 +254,144 @@ function handleKeydown(event: KeyboardEvent) {
 
 /* Upload tile */
 .gallery__upload-tile {
-  aspect-ratio: 1;
-  border: 2px dashed var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface-alt);
-  color: var(--color-text-muted);
+  width: 280px;
+  max-width: 100%;
+  height: 200px;
+  border: 1px dashed var(--g300);
+  border-radius: 12px;
+  background: var(--g50);
+  color: var(--g500);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  font-size: 0.72rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: 'Outfit', var(--font-sans);
 }
 
 .gallery__upload-tile:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.06);
+  border-color: var(--g900);
+  color: var(--g900);
+  background: var(--g100);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
-.gallery__upload-tile svg {
-  width: 24px;
-  height: 24px;
+.gallery__upload-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--g400);
+  transition: color 0.2s ease;
+}
+
+.gallery__upload-tile:hover .gallery__upload-icon {
+  color: var(--g900);
 }
 
 /* Empty states */
-.gallery__empty {
+.gallery__empty-tile {
+  width: 280px;
+  max-width: 100%;
+  height: 200px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.gallery__empty-tile--active {
+  background: var(--g50);
+  border: 1px solid var(--g200);
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery__empty-tile--active:hover {
+  border-color: var(--g300);
+  box-shadow: 0 4px 12px rgba(26, 23, 18, 0.03);
+}
+
+.gallery__empty-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px 20px;
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
+  max-width: 240px;
 }
 
-.gallery__empty svg {
-  width: 48px;
-  height: 48px;
-  opacity: 0.35;
-}
-
-.gallery__empty-upload {
+.gallery__empty-icon-wrap {
+  width: 32px;
+  height: 32px;
+  background: var(--g100);
+  color: var(--g500);
+  border-radius: 8px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 24px 0 8px;
+  margin-bottom: 8px;
 }
 
-.gallery__upload-btn {
+.gallery__empty-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.gallery__empty-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--g900);
+  margin: 0 0 2px;
+  letter-spacing: -0.01em;
+}
+
+.gallery__empty-subtitle {
+  font-size: 0.65rem;
+  color: var(--g500);
+  margin: 0 0 10px;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+
+.gallery__empty-btn {
+  font-size: 0.68rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--g900);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 10px;
-  border: 2px dashed var(--color-border);
-  background: var(--color-surface-alt);
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  gap: 3px;
+  transition: all 0.15s ease;
 }
 
-.gallery__upload-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+.gallery__empty-btn:hover {
+  background: var(--g700);
 }
 
-.gallery__upload-btn svg {
-  width: 18px;
-  height: 18px;
+.gallery__empty-btn:active {
+  transform: scale(0.97);
+}
+
+.gallery__empty-tile--placeholder {
+  border: 1px dashed var(--g200);
+  background: transparent;
+  color: var(--g200);
+}
+
+.gallery__placeholder-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.45;
 }
 
 /* Spinner */

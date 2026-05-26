@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useInvoice } from '@/composables/useInvoice'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,8 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { selectedInvoice, isLoading, isSubmitting, error, fetchInvoice, sendNotification, downloadDocument } = useInvoice()
+
+const successMessage = ref<string | null>(null)
 
 const canManage = computed(() =>
   authStore.user?.roles?.some((r) => ['owner', 'admin'].includes(r)) ?? false,
@@ -37,7 +39,14 @@ onMounted(() => fetchInvoice(route.params.id as string))
 
 async function handleSend() {
   if (!confirm('Send payment reminder to tenant?')) return
-  await sendNotification(route.params.id as string)
+  successMessage.value = null
+  const success = await sendNotification(route.params.id as string)
+  if (success) {
+    successMessage.value = 'Payment reminder notification sent successfully!'
+    setTimeout(() => {
+      successMessage.value = null
+    }, 4000)
+  }
 }
 
 async function handleDownload() {
@@ -54,6 +63,7 @@ async function handleDownload() {
     </button>
 
     <div v-if="error" class="alert alert--error">{{ error }}</div>
+    <div v-if="successMessage" class="alert alert--success">{{ successMessage }}</div>
 
     <div v-if="isLoading" class="sk-wrap">
       <div class="shimmer" style="height:80px;border-radius:14px;margin-bottom:20px" />

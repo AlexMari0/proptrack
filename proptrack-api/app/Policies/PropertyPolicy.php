@@ -52,7 +52,7 @@ class PropertyPolicy
      */
     public function uploadPhoto(User $user, Property $property): bool
     {
-        return $user->id === $property->owner_id || $user->hasRole('admin');
+        return $user->id === $property->owner_id || $user->hasRole('admin') || $user->hasRole('agent');
     }
 
     /**
@@ -60,6 +60,7 @@ class PropertyPolicy
      */
     public function deletePhoto(User $user, Property $property): bool
     {
-        return $user->id === $property->owner_id || $user->hasRole('admin');
+        return $user->id === $property->owner_id || $user->hasRole('admin') || $user->hasRole('agent');
     }
 }
+

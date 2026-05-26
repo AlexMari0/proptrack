@@ -350,3 +350,55 @@ test('deleting a non-existent photo returns 404', function () {
         ->deleteJson("/api/v1/properties/{$property->id}/photos/99999")
         ->assertStatus(404);
 });
+
+test('tenant can list only properties they have active contracts for when using has_active_lease filter', function () {
+    $owner = makeOwner();
+    $tenantUser = makeTenant();
+    
+    // Create tenant profile for tenant user
+    $tenant = \App\Models\Tenant::create([
+        'name' => $tenantUser->name,
+        'email' => $tenantUser->email,
+        'phone' => '087770825227',
+        'id_card_number' => '3171098765432109',
+        'emergency_contact_name' => 'Emergency Contact',
+        'emergency_contact_phone' => '081234567891',
+    ]);
+
+    $propertyActive = createProperty($owner, ['name' => 'Active Property']);
+    $propertyInactive = createProperty($owner, ['name' => 'Inactive Property']);
+    $propertyNoLease = createProperty($owner, ['name' => 'No Lease Property']);
+
+    // Create active contract
+    \App\Models\Contract::create([
+        'tenant_id' => $tenant->id,
+        'property_id' => $propertyActive->id,
+        'start_date' => '2026-06-02',
+        'end_date' => '2026-07-02',
+        'monthly_rent' => 1500000,
+        'deposit_amount' => 1500000,
+        'billing_date' => 1,
+        'status' => 'active',
+    ]);
+
+    // Create expired contract
+    \App\Models\Contract::create([
+        'tenant_id' => $tenant->id,
+        'property_id' => $propertyInactive->id,
+        'start_date' => '2025-06-02',
+        'end_date' => '2025-07-02',
+        'monthly_rent' => 1500000,
+        'deposit_amount' => 1500000,
+        'billing_date' => 1,
+        'status' => 'expired',
+    ]);
+
+    $response = $this
+        ->actingAs($tenantUser)
+        ->getJson('/api/v1/properties?has_active_lease=1');
+
+    $response->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.id', $propertyActive->id)
+        ->assertJsonPath('data.0.name', 'Active Property');
+});

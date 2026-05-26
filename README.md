@@ -134,6 +134,9 @@ php artisan serve # Berjalan di http://localhost:8000
 
 # Jalankan Queue Worker (untuk pembuatan PDF dan notifikasi)
 php artisan queue:work
+
+# Jalankan Server WebSocket Laravel Reverb (untuk fitur real-time)
+php artisan reverb:start --host=127.0.0.1 --port=8080
 ```
 
 ### 2. Konfigurasi Frontend (`proptrack-web`)

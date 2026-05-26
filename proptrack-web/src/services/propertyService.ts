@@ -20,6 +20,7 @@ export const propertyService = {
     if (filters.type) params.type = filters.type
     if (filters.page) params.page = filters.page
     if (filters.per_page) params.per_page = filters.per_page
+    if (filters.has_active_lease !== undefined) params.has_active_lease = filters.has_active_lease
 
     const response = await api.get<PropertyListResponse>('/api/v1/properties', { params })
     return response.data

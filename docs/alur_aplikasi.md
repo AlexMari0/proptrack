@@ -1,6 +1,6 @@
 # 🏢 Dokumentasi Alur Aplikasi PropTrack
 
-Dokumen ini menjelaskan arsitektur sistem, siklus hidup data (*data lifecycle*), dan alur kerja (*workflow*) end-to-end secara komprehensif pada platform PropTrack.
+Dokumen ini menjelaskan arsitektur sistem, siklus hidup data (*data lifecycle*), alur kerja (*workflow*) end-to-end secara komprehensif, serta mekanisme teknis di balik layar pada platform PropTrack.
 
 ---
 
@@ -39,9 +39,13 @@ graph TD
 ```
 
 ### Aturan Komunikasi Utama:
-1. **Autentikasi Stateless**: Tidak ada session berbasis cookie di sisi server. Otentikasi menggunakan **Laravel Sanctum Bearer Token** yang dikirimkan secara otomatis di setiap *request* melalui Axios Interceptor.
-2. **Pola Delegasi Bisnis**:
-   $$\text{Controller} \longrightarrow \text{FormRequest (Validasi)} \longrightarrow \text{Service (Logika Bisnis)} \longrightarrow \text{Resource (JSON Wrapper)}$$
+1.  **Autentikasi Stateless**: Tidak ada session berbasis cookie di sisi server. Otentikasi menggunakan **Laravel Sanctum Bearer Token** yang disimpan secara lokal dan dikirimkan secara otomatis di setiap *request* melalui Axios Interceptor.
+2.  **Pola Delegasi Bisnis**:
+    $$\text{Controller} \longrightarrow \text{FormRequest (Validasi)} \longrightarrow \text{Service (Logika Bisnis)} \longrightarrow \text{Resource (JSON Wrapper)}$$
+
+### Penjelasan Teknis Alur Arsitektur:
+*   **Decoupled HTTP/JSON API**: Klien frontend (`proptrack-web`) tidak pernah mengakses database atau merender file di sisi server (*No SSR/Inertia*). Semua komunikasi berjalan murni di atas protokol HTTP menggunakan berkas JSON terstruktur.
+*   **WebSockets Real-time**: Komunikasi dua arah didukung secara real-time melalui **Laravel Reverb**. Kejadian penting di sisi server (seperti notifikasi masuk atau perubahan transaksi pembayaran) disiarkan (*broadcasted*) secara instan ke peramban penyewa atau pemilik yang sedang aktif.
 
 ---
 
@@ -65,8 +69,11 @@ sequenceDiagram
     Note over User: Axios Interceptor menyisipkan token secara otomatis ke semua request selanjutnya
 ```
 
-*   **Pencegahan Rute Frontend**: Rute Vue Router dilindungi oleh *navigation guards* di `src/router/index.ts` untuk mengarahkan pengguna non-autentikasi ke halaman `/login`.
-*   **Sumber Kebenaran Otorisasi**: Validasi otorisasi selalu diverifikasi di sisi backend menggunakan **Laravel Policies** sebelum melakukan aksi database apa pun.
+### Penjelasan Teknis Alur Autentikasi:
+*   **Penerbitan Token**: Saat formulir login disubmit, kredensial dikirimkan ke `/api/v1/auth/login`. Jika valid, Laravel Sanctum membuat rekaman token bearer unik di database dan mengembalikannya ke klien bersama informasi profil pengguna serta perannya.
+*   **Persistensi Token Lokal**: Di sisi frontend, composable `useAuth` menyimpan token di **Pinia Store (`auth.ts`)** dan mencadangkannya di **`localStorage`** dengan kunci `proptrack_token`. Ini memastikan sesi tetap aktif bahkan jika halaman direfresh (*hard refresh*).
+*   **Injeksi Axios Global**: Plugin Axios (`src/plugins/axios.ts`) dikonfigurasi secara terpusat untuk menyisipkan tajuk `Authorization: Bearer <token>` pada setiap *HTTP request*. Klien Axios juga dibekali kemampuan menangani status `401 Unauthorized` secara global dengan menghapus token lokal dan mengarahkan pengguna kembali ke halaman login.
+*   **Validasi Keamanan Berlapis**: Pelindung navigasi (*router guards*) di frontend bertugas mengatur visibilitas halaman secara visual, namun backend Laravel tetap menjadi **sumber kebenaran otorisasi utama** menggunakan **Laravel Policies** sebelum mengeksekusi operasi database apa pun.
 
 ---
 
@@ -93,8 +100,11 @@ sequenceDiagram
     Note over Queue: Rendisi PDF bilingual menggunakan Spatie Laravel PDF secara asinkron
 ```
 
-> [!IMPORTANT]
-> Kontrak sewa harus bilingual (Bahasa Indonesia & Inggris), berisi rincian harga sewa, jumlah deposit, dan tanggal penagihan bulanan yang dibatasi dari tanggal 1 hingga 28 demi konsistensi perhitungan kalender.
+### Penjelasan Teknis Alur Kontrak & Data:
+*   **Manajemen Properti & Media**: Pemilik menambahkan properti beserta koordinat peta interaktif (Leaflet). Foto properti diunggah dan dikelola secara rapi menggunakan **Spatie Media Library**, yang menangani konversi ukuran gambar secara otomatis di server.
+*   **Verifikasi Penyewa**: Pemilik mendaftarkan penyewa dengan nomor KTP Indonesia 16 digit. Frontend menampilkan penghitung digit dinamis (*live counter*) dan menyembunyikan digit tengah KTP (*privacy masking*) demi menjaga privasi data kependudukan.
+*   **Pengaman Konflik Kontrak (Guard)**: Sebelum kontrak disimpan ke database, `ContractService` memanggil metode `assertNoActiveContractForProperty()`. Kueri ini memverifikasi bahwa properti tersebut tidak sedang dihuni oleh penyewa lain dengan status kontrak `active`. Jika ditemukan kontrak aktif, sistem melempar `ValidationException` (status 422) untuk membatalkan proses.
+*   **Rendisi PDF Bilingual Asinkron**: Pembuatan berkas PDF kontrak resmi berbahasa ganda (Bahasa Indonesia & Inggris) memerlukan sumber daya server yang intensif. Oleh karena itu, Laravel memasukkan proses ini ke antrean latar belakang (**`GenerateContractPdfJob`**) menggunakan driver Redis. *Queue worker* akan memproses pekerjaan ini secara asinkron untuk merender PDF menggunakan **Spatie Laravel PDF v2.8.0** tanpa mengganggu kecepatan respon aplikasi bagi pemilik properti.
 
 ---
 
@@ -129,8 +139,11 @@ sequenceDiagram
     Reverb-->>Tenant: 9. Transisi UI Seketika ke Layar Sukses Pembayaran
 ```
 
-*   **Pencegahan Inkonsistensi Pembayaran**: Penggunaan Webhook wajib diverifikasi keasliannya menggunakan *Signature Key* dari Midtrans sebelum database diperbarui untuk mencegah manipulasi status.
-*   **Asinkronitas Laporan**: Setelah invoice dibayar, sistem memicu pembaharuan data analisis keuangan secara otomatis.
+### Penjelasan Teknis Alur Invoice & Pembayaran:
+*   **Pembuatan Invoice Otomatis**: Secara berkala (atau dipicu manual), scheduler mencari semua kontrak aktif untuk bulan penagihan bersangkutan (format `YYYY-MM`), membuat record invoice berstatus `unpaid`, dan mengirimkan notifikasi database serta tautan tagihan instan melalui WhatsApp menggunakan **Fonnte API**.
+*   **Permintaan Transaksi Snap**: Ketika penyewa menekan tombol bayar, aplikasi frontend memanggil `/payments/create-transaction`. Di backend, `PaymentService` mengirim informasi nominal tagihan ke server Midtrans untuk mendapatkan **Snap Token**. Token rahasia ini dikembalikan ke frontend untuk meluncurkan modal integrasi pembayaran Midtrans (*Midtrans Snap Modal*) langsung di atas halaman web SPA.
+*   **Verifikasi Webhook Midtrans & Keamanan**: Setelah penyewa menyelesaikan pembayaran (melalui GoPay, VA, Kartu Kredit, dll.), server Midtrans secara mandiri dan asinkron mengirimkan HTTP POST (*Webhook*) ke backend (`POST /api/v1/payments/webhook/midtrans`). Kontroler memproses sinyal ini, memverifikasi keaslian **Signature Key** (SHA-512) dengan Server Key lokal untuk mencegah pemalsuan status bayar, lalu memperbarui status invoice menjadi `paid` beserta waktu pembayarannya.
+*   **WebSocket Update Instan**: Segera setelah database diperbarui, backend menyiarkan event `PaymentConfirmed` via **Laravel Reverb**. Halaman web Vue SPA penyewa yang aktif mendengarkan *private channel* Websocket tersebut akan menangkap event ini dan melakukan transisi antarmuka seketika ke halaman sukses (`PaymentStatus.vue`) tanpa perlu memuat ulang peramban secara manual.
 
 ---
 
@@ -152,9 +165,10 @@ graph TD
     Agent & Tenant <-->|Thread Dua Kolom| Comment[Tambahkan komentar baru & Balas Utas]
 ```
 
-### Fitur Pengaman Integritas:
-*   **Thread-Safety**: Penomoran tiket (`TKT-YYYY-XXXX`) dihitung di dalam transaksi database yang dikunci menggunakan kueri `lockForUpdate()` untuk mencegah kondisi balapan (*race condition*) ketika beberapa penyewa mengirim tiket bersamaan.
-*   **Keamanan Saluran Chat**: Komunikasi utas keluhan disiarkan via *Private Channel* Websocket Laravel Reverb yang membutuhkan otorisasi Sanctum aktif.
+### Penjelasan Teknis Alur Tiket Keluhan:
+*   **Pencegahan Duplikasi Kode Tiket (Race Condition)**: Tiket keluhan diberi nomor unik berurutan berformat `TKT-YYYY-XXXX`. Untuk menjamin keunikan nomor jika beberapa penyewa membuat tiket bantuan secara bersamaan, database diinstruksikan melakukan penguncian baris (`lockForUpdate()`) saat mengambil urutan tiket terakhir dalam transaksi database SQL. Langkah ini mencegah duplikasi nomor tiket (*race condition*).
+*   **Sistem Notifikasi dan Klaim**: Ketika keluhan masuk, sistem mengirim notifikasi real-time ke dasbor Admin dan Agen Dukungan. Agen dapat langsung mengklaim keluhan tersebut dan mengubah status tiket (`open` -> `in_progress`). Perubahan status ini segera disiarkan via Laravel Reverb sehingga UI di peramban penyewa terupdate secara live.
+*   **Percakapan Live Utas Komentar**: Penyewa dan agen dapat berdiskusi melalui utas obrolan dua kolom interaktif. Setiap kali komentar baru disubmit, backend menyimpan data dan menyiarkannya di saluran privat WebSocket `private-ticket.{ticketId}`. Ini memicu penambahan komentar secara instan di sisi lawan bicara layaknya sistem aplikasi chat modern.
 
 ---
 
@@ -182,6 +196,12 @@ Pemilik dapat memantau produktivitas investasi properti mereka melalui visualisa
 Visualisasi rasio koleksi, total             Rendisi asinkron template Blade
 tagihan, & total uang terkumpul              menjadi dokumen PDF resmi.
 ```
+
+### Penjelasan Teknis Pelaporan Finansial:
+*   **Penyaringan Berbasis Peran (RBAC Scoping)**: Saat memuat data analitik keuangan, `ReportService` menyaring data invoice berdasarkan peran pengguna. Akun dengan peran `owner` dibatasi kuerinya oleh Eloquent agar hanya menarik invoice dari portofolio properti milik ID owner tersebut, sedangkan peran `admin` diberikan akses agregasi global ke seluruh sistem.
+*   **Agregasi Cepat & Bersih (SOLID & DRY)**: Menggunakan fungsi pembantu `calculateMetrics()`, data nominal tagihan dijumlahkan berdasarkan status transaksinya secara efisien untuk mendapatkan data Total Tagihan (*total invoiced*), Total Uang Terkumpul (*total collected*), Tunggakan Outstanding (*total outstanding*), dan Rasio Koleksi (*collection rate*).
+*   **Penyajian via Resource**: Data keuangan yang teragregasi tersebut dibungkus rapi melalui `ReportResource` sebelum dikembalikan ke klien. Ini menjamin keseragaman struktur JSON API dan keterpisahan logika pemrosesan dari representasi data.
+*   **Ekspor Dokumen Fisik**: Pemilik dapat mengunduh berkas laporan dalam format PDF bilingual resmi yang dirender secara asinkron menggunakan pustaka rendisi PDF berbasis server untuk menjaga keandalan dan estetika desain dokumen cetak.
 
 ---
 

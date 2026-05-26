@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useProperty } from '@/composables/useProperty'
 import type { Property } from '@/types/property'
 
 const props = defineProps<{
@@ -10,16 +8,6 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-const authStore = useAuthStore()
-const { uploadPhoto } = useProperty()
-
-const isUploading = ref(false)
-
-const canUpload = computed(() => {
-  if (!authStore.user) return false
-  const roles = authStore.user.roles || []
-  return roles.includes('admin') || (roles.includes('owner') && String(props.property.owner?.id) === String(authStore.user.id))
-})
 
 const statusConfig = computed(() => {
   const map = {
@@ -48,22 +36,6 @@ const formattedPrice = computed(() =>
 function goToDetail() {
   router.push({ name: 'property-detail', params: { id: props.property.id } })
 }
-
-async function handlePhotoUpload(event: Event) {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  isUploading.value = true
-  try {
-    await uploadPhoto(props.property.id, file)
-  } catch (err) {
-    console.error('Failed to upload photo:', err)
-  } finally {
-    isUploading.value = false
-    target.value = ''
-  }
-}
 </script>
 
 <template>
@@ -76,36 +48,13 @@ async function handlePhotoUpload(event: Event) {
         :alt="property.name"
         class="property-card__img"
       />
-      <div v-else :class="['property-card__placeholder', { 'property-card__placeholder--uploadable': canUpload }]">
-        <div v-if="isUploading" class="property-card__uploading-spinner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" />
-            <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-linecap="round" />
+      <div v-else class="property-card__placeholder">
+        <div class="property-card__placeholder-info">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3m-3 3h3" />
           </svg>
-          <span>Uploading...</span>
+          <span>No Photo</span>
         </div>
-        <template v-else>
-          <div class="property-card__placeholder-info">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3m-3 3h3" />
-            </svg>
-            <span>No Photo</span>
-          </div>
-
-          <!-- Direct Upload Button -->
-          <label v-if="canUpload" class="property-card__upload-btn" @click.stop>
-            <input
-              type="file"
-              accept="image/*"
-              style="display: none;"
-              @change="handlePhotoUpload"
-            />
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Upload Photo
-          </label>
-        </template>
       </div>
 
       <!-- Type badge -->

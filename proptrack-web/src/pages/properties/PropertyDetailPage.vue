@@ -18,7 +18,10 @@ const propertyId = computed(() => route.params.id as string)
 
 const canManage = computed(() => {
   if (!selectedProperty.value || !authStore.user) return false
-  return String(authStore.user.id) === selectedProperty.value.owner.id || authStore.user.roles?.includes('admin')
+  const userId = String(authStore.user.id).toLowerCase()
+  const ownerId = String(selectedProperty.value.owner.id).toLowerCase()
+  const roles = authStore.user.roles || []
+  return userId === ownerId || roles.includes('admin') || roles.includes('agent')
 })
 
 const statusBadgeClass = computed(() => {
@@ -60,6 +63,7 @@ async function handleDelete() {
 
 async function handleUploadPhoto(file: File) { await uploadPhoto(propertyId.value, file) }
 async function handleDeletePhoto(mediaId: number) { await deletePhoto(propertyId.value, mediaId) }
+
 
 onMounted(async () => { await fetchProperty(propertyId.value) })
 
@@ -158,8 +162,8 @@ onUnmounted(() => { destroyMap() })
 
       <!-- Gallery -->
       <div class="card" style="margin-top:16px">
-        <p class="section-label">Photos ({{ selectedProperty.photos.length }})</p>
-        <div style="margin-top:12px">
+        <p class="section-label" style="margin-bottom:12px">Photos ({{ selectedProperty.photos.length }})</p>
+        <div>
           <PropertyGallery
             :photos="selectedProperty.photos"
             :property-id="selectedProperty.id"

@@ -45,6 +45,22 @@ class PropertyController extends Controller
             });
         }
 
+        // Filter by active lease of the current authenticated user
+        if ($request->boolean('has_active_lease')) {
+            $user = $request->user();
+            if ($user) {
+                $tenant = \App\Models\Tenant::where('email', $user->email)->first();
+                if ($tenant) {
+                    $query->whereHas('contracts', function ($q) use ($tenant) {
+                        $q->where('tenant_id', $tenant->id)
+                          ->where('status', 'active');
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
+        }
+
         $perPage = (int) $request->get('per_page', 15);
         $properties = $query->paginate($perPage);
 

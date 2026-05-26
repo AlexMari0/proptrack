@@ -79,4 +79,5 @@ export interface PropertyFilters {
   type: PropertyType | ''
   page: number
   per_page: number
+  has_active_lease?: boolean
 }

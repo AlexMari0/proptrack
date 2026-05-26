@@ -20,6 +20,7 @@ const canManage = computed(() =>
 
 const properties = ref<Property[]>([])
 const overdueCount = ref(0)
+const successMessage = ref<string | null>(null)
 
 async function fetchOverdueCount() {
   try {
@@ -61,8 +62,15 @@ function onMonthChange(month: string) {
 
 async function handleSend(id: string) {
   if (!confirm('Send payment reminder notification to tenant?')) return
-  await sendNotification(id)
-  await fetchOverdueCount()
+  successMessage.value = null
+  const success = await sendNotification(id)
+  if (success) {
+    successMessage.value = 'Payment reminder notification sent successfully!'
+    await fetchOverdueCount()
+    setTimeout(() => {
+      successMessage.value = null
+    }, 4000)
+  }
 }
 
 async function handleDownload(id: string, invoiceNumber: string) {
@@ -119,6 +127,7 @@ async function handleDownload(id: string, invoiceNumber: string) {
     </div>
 
     <div v-if="error" class="alert alert--error">{{ error }}</div>
+    <div v-if="successMessage" class="alert alert--success">{{ successMessage }}</div>
 
     <div v-if="isLoading" class="invoice-list">
       <div v-for="i in 6" :key="i" class="shimmer" style="height:96px;border-radius:16px;" />

@@ -40,6 +40,14 @@ class Property extends Model implements HasMedia
     }
 
     /**
+     * Get the contracts for the property.
+     */
+    public function contracts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Contract::class);
+    }
+
+    /**
      * Register Spatie Media Library collections.
      */
     public function registerMediaCollections(): void
