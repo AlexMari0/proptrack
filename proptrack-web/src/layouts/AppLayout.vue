@@ -110,6 +110,15 @@ onMounted(async () => {
           <span class="sidebar__label">Create User</span>
           <span class="sidebar__tooltip">Create User</span>
         </RouterLink>
+        <RouterLink v-if="isOwnerOrAdmin()" to="/audit-logs" class="sidebar__link" aria-label="Audit Trail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M12 8v4l3 3"/>
+            <path d="M3 12h18"/>
+          </svg>
+          <span class="sidebar__label">Audit Trail</span>
+          <span class="sidebar__tooltip">Audit Trail</span>
+        </RouterLink>
       </nav>
 
       <div class="sidebar__bottom">

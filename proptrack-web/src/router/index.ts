@@ -37,6 +37,12 @@ const router = createRouter({
       component: () => import('@/pages/auth/RegisterPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/audit-logs',
+      name: 'audit-logs',
+      component: () => import('@/pages/auth/AuditLogListPage.vue'),
+      meta: { requiresAuth: true },
+    },
     // ─── Properties ───────────────────────────────────────────────────────────
     {
       path: '/properties',

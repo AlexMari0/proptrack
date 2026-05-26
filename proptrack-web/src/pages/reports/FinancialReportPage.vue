@@ -6,10 +6,16 @@
         <h1 class="page-title">Financial report</h1>
         <p class="page-subtitle">Revenue performance and outstanding receivables analysis</p>
       </div>
-      <button @click="handleExport" :disabled="isExporting || isLoading" class="btn-primary">
-        <svg v-if="!isExporting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-        {{ isExporting ? 'Exporting PDF…' : 'Export PDF' }}
-      </button>
+      <div style="display:flex; gap:10px">
+        <button @click="handleExportCSV" :disabled="isLoading || !reportData" class="btn-ghost" style="border: 1px solid var(--g200); background: #ffffff; color: var(--g700);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="width:16px;height:16px;margin-right:6px"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          Export Excel
+        </button>
+        <button @click="handleExport" :disabled="isExporting || isLoading" class="btn-primary">
+          <svg v-if="!isExporting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          {{ isExporting ? 'Exporting PDF…' : 'Export PDF' }}
+        </button>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -252,6 +258,63 @@ export default defineComponent({
       await exportReport({ year: selectedYear.value, month: selectedMonth.value === '' ? undefined : selectedMonth.value, property_id: selectedPropertyId.value || undefined })
     }
 
+    function handleExportCSV() {
+      if (!reportData.value) return
+
+      const monthName = selectedMonth.value !== '' ? monthsList[selectedMonth.value - 1] : 'Full Year'
+      const propName = selectedPropertyId.value 
+        ? properties.value.find(p => p.id === selectedPropertyId.value)?.name || 'Unknown'
+        : 'All Properties'
+
+      // CSV Rows construction
+      const rows = [
+        ['PropTrack - Financial Report', ''],
+        ['Period', `${monthName} ${selectedYear.value}`],
+        ['Property', propName],
+        ['Generated At', new Date().toLocaleString('id-ID')],
+        ['', ''],
+        ['Overall Performance Metrics', ''],
+        ['Metric', 'Value'],
+        ['Total Invoiced', `Rp ${formatCurrency(reportData.value.total_invoiced)}`],
+        ['Total Collected', `Rp ${formatCurrency(reportData.value.total_collected)}`],
+        ['Total Outstanding', `Rp ${formatCurrency(reportData.value.total_outstanding)}`],
+        ['Collection Rate', `${reportData.value.collection_rate}%`],
+        ['', ''],
+        ['Property Performance Breakdown', ''],
+        ['Property', 'Invoiced', 'Collected', 'Outstanding']
+      ]
+
+      reportData.value.by_property.forEach((item: any) => {
+        rows.push([
+          item.property_name,
+          `Rp ${formatCurrency(item.invoiced)}`,
+          `Rp ${formatCurrency(item.collected)}`,
+          `Rp ${formatCurrency(item.outstanding)}`
+        ])
+      })
+
+      // Convert rows to semicolon-separated values (extremely standard for international Excel formats)
+      const csvContent = rows
+        .map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(';'))
+        .join('\n')
+
+      // UTF-8 BOM so Excel opens it with correct encoding instantly
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      
+      const periodStr = selectedMonth.value !== '' 
+        ? `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}`
+        : `${selectedYear.value}`
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', `financial-report-${periodStr}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+
     function formatCurrency(val: number): string {
       return val.toLocaleString('id-ID')
     }
@@ -260,7 +323,7 @@ export default defineComponent({
 
     onMounted(() => { fetchProperties(); loadData() })
 
-    return { properties, propertyError, reportData, isLoading, isExporting, error, selectedPropertyId, selectedYear, selectedMonth, yearsList, monthsList, trendChartData, chartOptions, handleExport, formatCurrency }
+    return { properties, propertyError, reportData, isLoading, isExporting, error, selectedPropertyId, selectedYear, selectedMonth, yearsList, monthsList, trendChartData, chartOptions, handleExport, handleExportCSV, formatCurrency }
   }
 })
 </script>

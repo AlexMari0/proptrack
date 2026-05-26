@@ -67,5 +67,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
     Route::put('notifications/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'readAll']);
     Route::put('notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'read']);
+
+    // Audit Trail Activity Logs
+    Route::get('audit-logs', [\App\Http\Controllers\Api\AuditLogController::class, 'index']);
 });
 
