@@ -1,10 +1,59 @@
 # 🏢 PropTrack — Platform Manajemen Properti Kelas Enterprise
 
-PropTrack adalah **platform manajemen properti tingkat produksi dengan arsitektur terpisah (decoupled)** yang dibangun menggunakan teknologi modern. Aplikasi ini menyediakan antarmuka yang mulus dan pengalaman real-time untuk tiga tipe pengguna:
+PropTrack adalah **platform manajemen properti dengan arsitektur terpisah (decoupled)** yang dibangun menggunakan teknologi modern. Aplikasi ini menyediakan antarmuka yang mulus dan pengalaman real-time untuk tiga tipe pengguna:
 
 *   **Pemilik & Admin (Owners & Admins)** — Mengawasi portofolio properti, menyusun kontrak sewa, mengelola invoice tagihan, memantau keuangan platform, dan menugaskan agen dukungan.
 *   **Agen Dukungan (Support Agents)** — Mengelola tiket keluhan dan pemeliharaan dari penghuni, memperbarui status tiket, dan membalas pesan dalam utas obrolan.
 *   **Penyewa (Tenants)** — Meninjau detail sewa aktif, mengunduh dokumen resmi kontrak PDF bilingual, membayar sewa bulanan secara aman secara online, dan mengirimkan tiket keluhan.
+
+---
+
+## 🎯 Masalah & Solusi (Problem & Solution)
+
+### Deskripsi Masalah (The Problem)
+Manajemen properti tradisional (seperti rumah kos, apartemen, atau ruko) sering kali terhambat oleh proses manual yang tidak efisien:
+*   **Verifikasi Pembayaran Manual**: Pemilik harus memeriksa mutasi rekening bank secara berkala untuk mencocokkan pembayaran sewa penyewa, yang rawan keterlambatan dan kesalahan pencatatan.
+*   **Kontrak Tidak Terpusat**: Dokumen perjanjian sewa sering tercecer, sulit dipantau masa berlakunya, dan sulit diakses secara instan oleh penyewa maupun pemilik.
+*   **Saluran Komunikasi Keluhan Tersebar**: Keluhan kerusakan properti diajukan lewat chat personal (WhatsApp/SMS), sehingga sulit dipantau perkembangannya dan tidak terarsip dengan baik.
+*   **Laporan Finansial yang Lambat**: Pemilik kesulitan menghitung tingkat pendapatan bersih, rasio penagihan (*collection rate*), dan outstanding invoice secara instan.
+
+### Solusi PropTrack (The Solution)
+PropTrack mengatasi tantangan tersebut dengan menghadirkan solusi digital **Enterprise-Grade** satu pintu:
+1.  **Konfirmasi Pembayaran Instan 24/7**: Integrasi *Midtrans Snap API* memfasilitasi transaksi online (Virtual Account, E-Wallet, Kartu Kredit) dengan konfirmasi otomatis seketika melalui Webhook yang aman.
+2.  **Manajemen Kontrak Terpusat & Otomatis**: Sistem menerapkan aturan bisnis secara ketat (misal: *hanya satu kontrak aktif per properti*) serta menerbitkan draf kontrak bilingual (Indonesia/Inggris) berwujud PDF secara otomatis.
+3.  **Sistem Tiket Keluhan Real-time**: Keluhan penyewa dikonsolidasikan dalam sistem tiket bantuan dengan penomoran unik thread-safe. Agen dukungan dan penyewa dapat berinteraksi secara interaktif di dalam utas komentar yang diperbarui secara langsung melalui WebSockets.
+4.  **Analisis Keuangan Instan**: Dasbor analitik interaktif menghitung keseluruhan data tagihan bulanan dan menampilkan tren performa keuangan portofolio properti dalam bentuk grafik intuitif.
+
+---
+
+## 🏗️ Arsitektur Sistem Sederhana (Simple Architecture)
+
+PropTrack dirancang dengan arsitektur terpisah (*fully decoupled*) untuk menjamin kinerja yang cepat, keamanan data, dan fleksibilitas pengembangan:
+
+```mermaid
+graph TD
+    subgraph Frontend [Klien: PropTrack Web - Vue 3 SPA]
+        UI[Antarmuka Pengguna / Vue] <--> Pinia[State Management / Pinia]
+        UI <--> Echo[Laravel Echo / WebSockets]
+    end
+
+    subgraph Backend [Server: PropTrack API - Laravel 12]
+        Controller[Kontroler API] <--> Services[Service / Logika Bisnis]
+        Services <--> Jobs[Redis Queue Workers]
+    end
+
+    subgraph Database & Services
+        DB[(Database SQLite)]
+        Midtrans[Midtrans Payment Gateway]
+        Fonnte[Fonnte WhatsApp API]
+    end
+
+    UI <-->|HTTP API + Bearer Token| Controller
+    Echo <-->|WebSockets Real-time| Services
+    Services <-->|Eloquent ORM| DB
+    Services <-->|Transaksi Online| Midtrans
+    Jobs -->|Notifikasi WhatsApp| Fonnte
+```
 
 ---
 
@@ -99,6 +148,19 @@ cp .env.example .env
 # Jalankan Server Pengembangan Vite
 npm run dev # Berjalan di http://localhost:5173
 ```
+
+### 3. Akun & Kredensial Pengujian (Test Accounts)
+
+Setelah menjalankan database seeder, Anda dapat masuk ke aplikasi menggunakan akun-akun simulasi berikut berdasarkan perannya (*role-based access control*):
+
+| Peran (Role) | Email | Kata Sandi | Deskripsi Hak Akses |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin@proptrack.com` | `password` | Akses penuh ke seluruh sistem, portofolio properti, penyewa, & kontrak |
+| **Pemilik (Owner)** | `owner@proptrack.com` | `password` | Mengelola properti & kontrak miliknya, melihat analisis keuangan |
+| **Agen Dukungan** | `agent@proptrack.com` | `password` | Mengklaim, memperbarui status, dan merespons tiket keluhan penyewa |
+| **Penyewa Utama** | `tenant@proptrack.com` | `password` | Meninjau kontrak aktif, membayar sewa (Midtrans), & mengirim keluhan |
+| **Penyewa Tambahan 1** | `tenant2@proptrack.com` | `password` | Simulasi akun penyewa sekunder |
+| **Penyewa Tambahan 2** | `tenant3@proptrack.com` | `password` | Simulasi akun penyewa tersier |
 
 ---
 
