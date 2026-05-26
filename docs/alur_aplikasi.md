@@ -176,25 +176,18 @@ graph TD
 
 Pemilik dapat memantau produktivitas investasi properti mereka melalui visualisasi dasbor interaktif.
 
-```
-+-------------------------------------------------------------------------+
-|                              REPORT SERVICE                             |
-|                                                                         |
-|  1. Ambil semua invoice aktif (Kecuali status = cancelled)              |
-|  2. Terapkan filter berdasarkan Peran (Owner hanya melihat properti     |
-|     miliknya, Admin melihat keseluruhan)                                |
-|  3. Terapkan filter periode tanggal tahun/bulan                        |
-|  4. Kalkulasi metrik agregat secara efisien (Helper: calculateMetrics)   |
-|  5. Kelompokkan berdasarkan properti untuk data sebaran                 |
-|  6. Format data terstruktur dikembalikan melalui ReportResource         |
-+-------------------------------------------------------------------------+
-                                   |
-         +-------------------------+-------------------------+
-         |                                                   |
-         v                                                   v
-[Grafik 12 Bulan (Vite/ChartJS)]                   [Ekspor PDF / CSV]
-Visualisasi rasio koleksi, total             Rendisi asinkron template Blade
-tagihan, & total uang terkumpul              menjadi dokumen PDF resmi.
+```mermaid
+graph TD
+    subgraph RS [ReportService Aggregator Engine]
+        A[1. Ambil semua invoice aktif <br><i>kecuali status = cancelled</i>] --> B[2. Terapkan filter berdasarkan Peran <br><i>Owner hanya properti miliknya, Admin global</i>]
+        B --> C[3. Terapkan filter periode tanggal tahun/bulan]
+        C --> D[4. Kalkulasi metrik agregat secara efisien <br><i>Helper: calculateMetrics</i>]
+        D --> E[5. Kelompokkan berdasarkan properti <br><i>untuk data sebaran sewa</i>]
+        E --> F[6. Format data terstruktur dikembalikan <br><i>melalui ReportResource</i>]
+    end
+
+    F -->|Rilis Data Analitik| Chart[Grafik 12 Bulan <br><i>Vite + Chart.js</i><br>Visualisasi rasio koleksi, total tagihan, & total uang terkumpul]
+    F -->|Rilis Dokumen Fisik| Export[Ekspor PDF / CSV <br><i>Spatie Laravel PDF</i><br>Rendisi asinkron template Blade menjadi dokumen PDF resmi]
 ```
 
 ### Penjelasan Teknis Pelaporan Finansial:
@@ -207,27 +200,30 @@ tagihan, & total uang terkumpul              menjadi dokumen PDF resmi.
 
 ## 🏁 Ringkasan Siklus Hidup Alur Utama (End-to-End)
 
-```
-[Pemilik Properti]                     [Penyewa (Tenant)]                 [Agen / Admin]
-       │                                       │                                │
-       ├─► Buat Properti & Galeri Foto         │                                │
-       ├─► Daftarkan Penyewa (KTP)             │                                │
-       ├─► Tanda Tangan Kontrak Sewa ──────────┼───► Terima Email Kontrak (PDF) │
-       │                                       │                                │
-       ├─► (Siklus Bulanan / Cron)             │                                │
-       │   Buat Tagihan Sewa Bulanan ──────────┼───► Terima Notifikasi In-app   │
-       │                                       │     & WhatsApp Link Tagihan    │
-       │                                       │                                │
-       │                                       ├─► Bayar Tagihan (Midtrans Snap)│
-       │                                       │   Konfirmasi Pembayaran        │
-       │   Terima Laporan Analisis             │   Diterima secara Live         │
-       │   Keuangan Update (Grafik/PDF) ◄──────┤                                │
-       │                                       │                                │
-       │                                       ├─► Kirim Tiket AC Rusak ───────►├─► Klaim Tiket
-       │                                       │                                ├─► Set "In Progress"
-       │                                       │   Terima Live Status Update ◄──┤
-       │                                       │                                │
-       │                                       ├─► Diskusi Utas Chat ◄─────────►├─► Balas Utas Chat
-       │                                       │                                ├─► Selesaikan Tiket
-       │                                       │   Terima Update Selesai ◄──────┤   (Ubah status -> Resolved)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as Pemilik Properti
+    actor Tenant as Penyewa (Tenant)
+    actor Agent as Agen / Admin
+
+    Note over Owner, Tenant: Tahap 1: Inisialisasi & Sewa
+    Owner->>Owner: Buat Properti & Galeri Foto
+    Owner->>Owner: Daftarkan Penyewa (KTP)
+    Owner->>Tenant: Tanda Tangan Kontrak Sewa (Kirim PDF via Email)
+
+    Note over Owner, Tenant: Tahap 2: Siklus Bulanan & Pembayaran
+    loop Setiap Bulan (Scheduler / Cron)
+        Owner->>Tenant: Terbitkan Invoice Baru (Notifikasi In-app & WhatsApp Link)
+    end
+    Tenant->>Tenant: Bayar Tagihan via Midtrans Snap (Virtual Account/VA/E-wallet)
+    Tenant-->>Owner: Konfirmasi Pembayaran Sukses (Live di Dasbor Keuangan)
+
+    Note over Tenant, Agent: Tahap 3: Pelaporan Masalah & Dukungan
+    Tenant->>Agent: Kirim Tiket Keluhan (misal: AC Bocor)
+    Agent->>Agent: Klaim Tiket & Ubah status ke "In Progress"
+    Agent-->>Tenant: Terima Update Status Live (WebSockets Reverb)
+    Tenant-->Agent: Diskusi Utas Komentar Dua Arah (Saling Membalas Chat)
+    Agent->>Agent: Selesaikan Tiket (Ubah status -> Resolved)
+    Agent-->>Tenant: Terima Notifikasi Tiket Selesai
 ```
