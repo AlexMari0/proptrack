@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ReportResource;
 use App\Models\Property;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,7 @@ class ReportController extends Controller
         );
 
         return response()->json([
-            'data'    => $summary,
+            'data'    => new ReportResource($summary),
             'message' => 'Success',
         ]);
     }
@@ -55,7 +56,7 @@ class ReportController extends Controller
         );
 
         return response()->json([
-            'data'    => $summary,
+            'data'    => new ReportResource($summary),
             'message' => 'Success',
         ]);
     }
@@ -96,3 +97,4 @@ class ReportController extends Controller
         );
     }
 }
+

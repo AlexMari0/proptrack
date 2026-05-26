@@ -1,5 +1,6 @@
 import api from '@/plugins/axios'
 import type { InvoiceFilters, InvoiceListResponse, InvoiceResponse } from '@/types/invoice'
+import { downloadBlob } from '@/utils/file'
 
 export const invoiceService = {
   async list(filters: Partial<InvoiceFilters> = {}): Promise<InvoiceListResponse> {
@@ -30,11 +31,7 @@ export const invoiceService = {
     const response = await api.get(`/api/v1/invoices/${id}/document`, {
       responseType: 'blob',
     })
-    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${invoiceNumber}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
+    downloadBlob(response.data, `${invoiceNumber}.pdf`)
   },
 }
+

@@ -1,5 +1,6 @@
 import api from '@/plugins/axios';
 import type { FinancialReport } from '@/types/report';
+import { downloadBlob } from '@/utils/file';
 
 export interface ReportParams {
   year: number;
@@ -51,13 +52,7 @@ export const reportService = {
       : `${params.year}`;
     const filename = `financial-report-${period}.pdf`;
 
-    const url = window.URL.createObjectURL(
-      new Blob([response.data], { type: 'application/pdf' })
-    );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    window.URL.revokeObjectURL(url);
+    downloadBlob(response.data, filename);
   },
 };
+

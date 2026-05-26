@@ -6,6 +6,7 @@ import type {
   UpdateContractPayload,
   ContractFilters,
 } from '@/types/contract'
+import { downloadBlob } from '@/utils/file'
 
 export const contractService = {
   async list(filters: Partial<ContractFilters> = {}): Promise<ContractListResponse> {
@@ -47,11 +48,7 @@ export const contractService = {
     const response = await api.get(`/api/v1/contracts/${id}/document`, {
       responseType: 'blob',
     })
-    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `contract-${id}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
+    downloadBlob(response.data, `contract-${id}.pdf`)
   },
 }
+
