@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Contract;
-use App\Models\Tenant;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
@@ -19,7 +18,7 @@ class TicketService
     {
         // If the user has a tenant role, ensure they have an active contract for the selected property
         if ($user->hasRole('tenant')) {
-            $tenant = Tenant::where('email', $user->email)->first();
+            $tenant = $user->tenantProfile;
             if (!$tenant) {
                 throw ValidationException::withMessages([
                     'property_id' => 'Tenant profile not found for this user.',

@@ -19,8 +19,7 @@ class ContractPolicy
         }
 
         if ($user->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $user->email)->first();
-            return $tenant && $contract->tenant_id === $tenant->id;
+            return $contract->tenant?->user_id === $user->id;
         }
 
         return false;

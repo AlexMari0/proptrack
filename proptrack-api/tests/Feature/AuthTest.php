@@ -296,6 +296,7 @@ test('tenant email update synchronizes with tenant profile email', function () {
     $user->assignRole('tenant');
 
     \App\Models\Tenant::create([
+        'user_id' => $user->id,
         'name' => 'Tenant User',
         'email' => 'tenant@example.com',
         'phone' => '081234567891',

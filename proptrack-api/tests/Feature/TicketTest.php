@@ -51,6 +51,8 @@ function ticketTenantUser(string $email = 'tenant@example.com'): User
 function ticketMakeTenant(string $email = 'tenant@example.com'): Tenant
 {
     return Tenant::create([
+        // Link to the login account created with the same email, as TenantService does.
+        'user_id'                 => User::where('email', $email)->value('id'),
         'name'                    => 'Ani Wijaya',
         'email'                   => $email,
         'phone'                   => '081234567890',

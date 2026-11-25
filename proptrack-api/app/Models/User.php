@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -33,15 +34,19 @@ class User extends Authenticatable
     }
 
     /**
+     * The tenant profile linked to this account (tenants only).
+     */
+    public function tenantProfile(): HasOne
+    {
+        return $this->hasOne(Tenant::class);
+    }
+
+    /**
      * Get the phone number for Fonnte WhatsApp notifications.
      */
     public function routeNotificationForFonnte(): ?string
     {
-        if ($this->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $this->email)->first();
-            return $tenant?->phone;
-        }
-        return null;
+        return $this->tenantProfile?->phone;
     }
 }
 

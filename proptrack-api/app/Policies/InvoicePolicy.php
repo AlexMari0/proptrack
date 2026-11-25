@@ -19,7 +19,7 @@ class InvoicePolicy
         }
 
         if ($user->hasRole('tenant')) {
-            return $invoice->tenant?->email === $user->email;
+            return $invoice->tenant?->user_id === $user->id;
         }
 
         return false;

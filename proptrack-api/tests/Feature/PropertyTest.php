@@ -357,6 +357,7 @@ test('tenant can list only properties they have active contracts for when using 
     
     // Create tenant profile for tenant user
     $tenant = \App\Models\Tenant::create([
+        'user_id' => $tenantUser->id,
         'name' => $tenantUser->name,
         'email' => $tenantUser->email,
         'phone' => '087770825227',

@@ -70,6 +70,7 @@ function broadcastingTenantUser()
 function broadcastingMakeTenant(User $user)
 {
     return Tenant::create([
+        'user_id'                 => $user->id,
         'name'                    => $user->name,
         'email'                   => $user->email,
         'phone'                   => '081234567890',

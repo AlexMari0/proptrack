@@ -57,6 +57,8 @@ function notifTenantUser(string $email = 'tenant@example.com'): User
 function notifMakeTenant(string $email = 'tenant@example.com'): Tenant
 {
     return Tenant::create([
+        // Link to the login account created with the same email, as TenantService does.
+        'user_id'                 => User::where('email', $email)->value('id'),
         'name'                    => 'Budi Utomo',
         'email'                   => $email,
         'phone'                   => '081234567890',

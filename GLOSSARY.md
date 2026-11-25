@@ -2,6 +2,16 @@
 
 Property management for owners and their agents: properties are let to tenants under contracts, tenants are billed monthly, and maintenance is tracked through tickets.
 
+## People
+
+**Tenant**:
+A person who rents a Property under a Contract: the one who is billed and who reports maintenance issues.
+_Avoid_: Renter, resident, penyewa (in code)
+
+**Tenant account**:
+The login a Tenant uses to see their own Contracts, Invoices and Tickets. A Tenant has at most one and may have none (for example, a walk-in tenant managed only by the owner).
+_Avoid_: User (when you mean the Tenant)
+
 ## Billing
 
 **Invoice**:

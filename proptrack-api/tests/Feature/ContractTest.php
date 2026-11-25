@@ -106,7 +106,7 @@ test('unauthenticated user cannot access contracts', function () {
 test('tenant role can list own contracts and gets filtered results', function () {
     Bus::fake();
     $tenantUser = contractTenantUser();
-    $tenant = contractMakeTenant(['email' => $tenantUser->email]);
+    $tenant = contractMakeTenant(['email' => $tenantUser->email, 'user_id' => $tenantUser->id]);
     $property = contractMakeProperty();
     $contract1 = makeContract($tenant->id, $property->id);
 

@@ -27,12 +27,7 @@ class InvoiceController extends Controller
         $query = Invoice::with(['tenant', 'property', 'contract'])->latest();
 
         if ($request->user()->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $request->user()->email)->first();
-            if ($tenant) {
-                $query->where('tenant_id', $tenant->id);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
+            $query->whereRelation('tenant', 'user_id', $request->user()->id);
         }
 
         if ($request->filled('status')) {

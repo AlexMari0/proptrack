@@ -49,15 +49,10 @@ class PropertyController extends Controller
         if ($request->boolean('has_active_lease')) {
             $user = $request->user();
             if ($user) {
-                $tenant = \App\Models\Tenant::where('email', $user->email)->first();
-                if ($tenant) {
-                    $query->whereHas('contracts', function ($q) use ($tenant) {
-                        $q->where('tenant_id', $tenant->id)
-                          ->where('status', 'active');
-                    });
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+                $query->whereHas('contracts', function ($q) use ($user) {
+                    $q->where('status', 'active')
+                      ->whereRelation('tenant', 'user_id', $user->id);
+                });
             }
         }
 

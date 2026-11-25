@@ -100,6 +100,7 @@ class DatabaseSeeder extends Seeder
 
         // 2. Seed Tenant Profiles (in tenants table)
         $tenantProfile1 = Tenant::create([
+            'user_id' => $tenantUser1->id,
             'name' => 'Tenant Resident',
             'email' => 'tenant@proptrack.com',
             'phone' => '081234567890',
@@ -109,6 +110,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $tenantProfile2 = Tenant::create([
+            'user_id' => $tenantUser2->id,
             'name' => 'Budi Santoso',
             'email' => 'tenant2@proptrack.com',
             'phone' => '081234567892',
@@ -118,6 +120,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $tenantProfile3 = Tenant::create([
+            'user_id' => $tenantUser3->id,
             'name' => 'Dewi Lestari',
             'email' => 'tenant3@proptrack.com',
             'phone' => '081234567893',
@@ -127,6 +130,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $tenantProfile4 = Tenant::create([
+            'user_id' => $tenantUser4->id,
             'name' => 'Alex Mario Kristian',
             'email' => 'alex@proptrack.com',
             'phone' => '087770825227',

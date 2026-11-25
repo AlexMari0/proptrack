@@ -116,6 +116,7 @@ test('unauthenticated user cannot access invoices', function () {
 test('tenant role can list own invoices and gets filtered results', function () {
     $tenantUser = invoiceTenantUser();
     $tenant = Tenant::create([
+        'user_id'                 => $tenantUser->id,
         'name'                    => 'Ani Wijaya',
         'email'                   => $tenantUser->email,
         'phone'                   => '081234567890',
