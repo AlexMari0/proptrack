@@ -11,7 +11,6 @@ use App\Models\Ticket;
 use App\Services\PropertyService;
 use App\Services\TenantService;
 use App\Services\ContractService;
-use App\Services\InvoiceService;
 use App\Services\PaymentService;
 use App\Services\TicketService;
 use Illuminate\Console\Command;
@@ -41,7 +40,6 @@ class TryAppFlowsCommand extends Command
         PropertyService $propertyService,
         TenantService $tenantService,
         ContractService $contractService,
-        InvoiceService $invoiceService,
         PaymentService $paymentService,
         TicketService $ticketService
     ) {
@@ -148,10 +146,11 @@ class TryAppFlowsCommand extends Command
             // ──────────────────────────────────────────────────────────────────
             // STEP 5: INVOICE GENERATION
             // ──────────────────────────────────────────────────────────────────
-            $this->comment("\n👉 [STEP 5/9] Simulating Automated Invoice & Billing Lifecycle (InvoiceService)...");
+            $this->comment("\n👉 [STEP 5/9] Simulating Automated Invoice & Billing Lifecycle (Invoice::issueFor)...");
             
             $billingMonth = now()->format('Y-m');
-            $invoice = $invoiceService->createInvoiceForContract($contract, $billingMonth);
+            $invoice = Invoice::issueFor($contract, $billingMonth)
+                ?? Invoice::where('contract_id', $contract->id)->where('billing_month', $billingMonth)->firstOrFail();
 
             $this->line("   [OK] Invoice created successfully: '{$invoice->invoice_number}' (ID: {$invoice->id})");
             $this->line("   [OK] Amount billed: Rp " . number_format($invoice->amount, 0, ',', '.'));

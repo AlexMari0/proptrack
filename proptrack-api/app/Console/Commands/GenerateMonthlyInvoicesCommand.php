@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\InvoiceService;
-use Carbon\Carbon;
+use App\Models\Invoice;
 use Illuminate\Console\Command;
 
 class GenerateMonthlyInvoicesCommand extends Command
@@ -23,7 +23,7 @@ class GenerateMonthlyInvoicesCommand extends Command
 
     public function handle(): int
     {
-        $month = $this->option('month') ?? Carbon::now()->format('Y-m');
+        $month = $this->option('month') ?? Invoice::billingToday()->format('Y-m');
 
         // Basic format validation
         if (! preg_match('/^\d{4}-\d{2}$/', $month)) {
@@ -36,12 +36,6 @@ class GenerateMonthlyInvoicesCommand extends Command
         $created = $this->invoiceService->generateMonthlyInvoices($month);
 
         $this->info("Done. {$created} invoice(s) created.");
-
-        // Also mark any overdue invoices while we're here
-        $overdue = $this->invoiceService->markOverdueInvoices();
-        if ($overdue > 0) {
-            $this->info("{$overdue} invoice(s) marked as overdue.");
-        }
 
         return self::SUCCESS;
     }

@@ -36,7 +36,7 @@ class InvoiceController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->withEffectiveStatus($request->string('status'));
         }
 
         if ($request->filled('property_id')) {

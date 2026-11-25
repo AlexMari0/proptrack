@@ -9,8 +9,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Generate invoices for the current month every day at midnight.
-// Running daily (not monthly) so overdue detection also fires every day.
+// Generate invoices for the current billing month. Runs daily so a contract
+// activated mid-month is still billed; issuing is idempotent per month.
+// Overdue is derived from due_date, not set by a job (docs/adr/0001-overdue-is-derived.md).
 Schedule::command(GenerateMonthlyInvoicesCommand::class)->daily();
 
 // Dispatch daily scheduled notifications (due invoices, expiring contracts)

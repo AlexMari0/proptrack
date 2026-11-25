@@ -292,6 +292,9 @@ test('manual invoice send triggers InvoiceCreatedNotification', function () {
 
 test('scheduled command dispatches InvoiceDueNotification and ContractExpiringNotification', function () {
     Notification::fake();
+    // Invoice due dates count in the billing timezone (Asia/Jakarta); pin a time
+    // where the UTC and Jakarta calendar dates agree.
+    $this->travelTo(\Carbon\Carbon::parse('2026-06-10 05:00:00', 'UTC'));
 
     $tenant1Email = 't1@expiring.com';
     $tenant1User = notifTenantUser($tenant1Email);

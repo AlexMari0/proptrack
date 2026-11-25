@@ -254,7 +254,7 @@ class DatabaseSeeder extends Seeder
             'due_date' => '2026-06-01',
         ]);
 
-        // Contract 2: 1 paid invoice, 1 overdue invoice
+        // Contract 2: 1 paid invoice, 1 overdue (unpaid, past due) invoice
         Invoice::create([
             'contract_id' => $contract2->id,
             'tenant_id' => $tenantProfile2->id,
@@ -274,7 +274,7 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenantProfile2->id,
             'property_id' => $property2->id,
             'invoice_number' => 'INV-2026-0003',
-            'status' => 'overdue',
+            'status' => 'unpaid', // overdue: due_date is in the past
             'amount' => 8500000,
             'billing_month' => '2026-04',
             'due_date' => '2026-04-05',

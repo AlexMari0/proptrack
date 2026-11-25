@@ -18,8 +18,7 @@ class ReportService
      */
     public function getFinancialSummary(User $user, int $year, ?int $month = null): array
     {
-        $invoicesQuery = Invoice::with('property')
-            ->where('status', '!=', 'cancelled');
+        $invoicesQuery = Invoice::with('property')->notCancelled();
 
         // Scope by user roles
         if (!$user->hasRole('admin') && $user->hasRole('owner')) {
@@ -79,7 +78,7 @@ class ReportService
 
         $invoicesQuery = Invoice::with('property')
             ->where('property_id', $property->id)
-            ->where('status', '!=', 'cancelled');
+            ->notCancelled();
 
         $period = $this->applyPeriodFilter($invoicesQuery, $year, $month);
         $invoices = $invoicesQuery->get();
@@ -162,8 +161,8 @@ class ReportService
     private function calculateMetrics(Collection $invoices): array
     {
         $invoiced = $invoices->sum('amount');
-        $collected = $invoices->where('status', 'paid')->sum('amount');
-        $outstanding = $invoices->whereIn('status', ['unpaid', 'overdue'])->sum('amount');
+        $collected = $invoices->filter->isPaid()->sum('amount');
+        $outstanding = $invoices->filter->isOutstanding()->sum('amount');
         $collectionRate = $invoiced > 0 ? round(($collected / $invoiced) * 100, 1) : 0.0;
 
         return [

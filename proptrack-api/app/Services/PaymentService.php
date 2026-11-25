@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\InvalidInvoiceTransition;
 use App\Models\Invoice;
 use App\Jobs\HandleMidtransWebhookJob;
 use Illuminate\Support\Facades\Http;
@@ -42,15 +43,11 @@ class PaymentService
      */
     public function createMidtransTransaction(Invoice $invoice): array
     {
-        if ($invoice->status === 'paid') {
+        if (! $invoice->isPayable()) {
             throw ValidationException::withMessages([
-                'invoice_id' => ['This invoice has already been paid.'],
-            ]);
-        }
-
-        if ($invoice->status === 'cancelled') {
-            throw ValidationException::withMessages([
-                'invoice_id' => ['This invoice has been cancelled.'],
+                'invoice_id' => [$invoice->isPaid()
+                    ? 'This invoice has already been paid.'
+                    : 'This invoice cannot be paid.'],
             ]);
         }
 
@@ -170,25 +167,18 @@ class PaymentService
     {
         $invoice = Invoice::where('invoice_number', $invoiceNumber)->first();
 
-        if (! $invoice || $invoice->isPaid()) {
+        if (! $invoice) {
             return;
         }
 
-        $invoice->update([
-            'status'          => 'paid',
-            'paid_at'         => now(),
-            'payment_gateway' => $gateway,
-        ]);
-
-        $invoice->loadMissing(['tenant', 'property']);
-
-        // Notify tenant
-        $invoice->tenant->getNotifiable()->notify(new \App\Notifications\PaymentConfirmedNotification($invoice));
-
-        // Broadcast PaymentConfirmed event
-        event(new \App\Events\PaymentConfirmed($invoice));
-
-        Log::info("Invoice paid: {$invoiceNumber} via {$gateway}");
+        try {
+            // Notification and PaymentConfirmed broadcast happen in the InvoicePaid listener.
+            if ($invoice->markPaid($gateway)) {
+                Log::info("Invoice paid: {$invoiceNumber} via {$gateway}");
+            }
+        } catch (InvalidInvoiceTransition $e) {
+            Log::warning("Payment settled for unpayable invoice: {$e->getMessage()}");
+        }
     }
 
     /**
@@ -198,7 +188,7 @@ class PaymentService
     {
         return [
             'invoice_id'    => $invoice->id,
-            'status'        => $invoice->status,
+            'status'        => $invoice->effectiveStatus(),
             'paid_at'       => $invoice->paid_at?->toIso8601String(),
             'payment_gateway' => $invoice->payment_gateway,
         ];

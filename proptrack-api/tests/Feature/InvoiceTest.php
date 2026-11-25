@@ -6,7 +6,6 @@ use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Jobs\GenerateInvoicePdfJob;
-use App\Services\InvoiceService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -283,7 +282,6 @@ test('artisan command generates invoices for active contracts', function () {
     $this->artisan("invoices:generate --month={$billingMonth}")
         ->assertExitCode(0);
 
-    // The generated invoice exists (status may be overdue if billing_date < today)
     $this->assertDatabaseHas('invoices', [
         'tenant_id'     => $tenant->id,
         'billing_month' => $billingMonth,
@@ -326,28 +324,24 @@ test('artisan command only generates for active contracts', function () {
     expect(Invoice::count())->toBe(0);
 });
 
-test('artisan command marks overdue invoices', function () {
-    Bus::fake();
+test('past-due unpaid invoices list as overdue without any job running', function () {
+    $this->travelTo(Carbon::parse('2026-06-10 05:00:00', 'UTC')); // 12:00 in Jakarta
 
     $tenant = invoiceMakeTenant();
     $property = invoiceMakeProperty();
     $contract = invoiceMakeContract($tenant, $property);
 
-    // Manually create an overdue invoice for LAST month so the command
-    // does not generate a duplicate (different billing_month).
-    // Give it a past due_date so the mark-overdue step fires.
-    invoiceMakeInvoice($contract, [
-        'billing_month' => now()->subMonth()->format('Y-m'),
-        'due_date'      => now()->subDay(),
-        'status'        => 'unpaid',
-    ]);
+    invoiceMakeInvoice($contract, ['billing_month' => '2026-05', 'due_date' => '2026-06-09']);
+    invoiceMakeInvoice($contract, ['billing_month' => '2026-06', 'due_date' => '2026-06-10']);
 
-    // Run for CURRENT month — generates 0 or 1 new invoice (billing_date=5, may be overdue too)
-    $this->artisan('invoices:generate --month=' . now()->format('Y-m'))
-        ->assertExitCode(0);
+    $this->actingAs(invoiceOwner())
+        ->getJson('/api/v1/invoices?status=overdue')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.billing_month', '2026-05')
+        ->assertJsonPath('data.0.status', 'overdue');
 
-    // At least the pre-created invoice should be overdue
-    expect(Invoice::where('status', 'overdue')->count())->toBeGreaterThanOrEqual(1);
+    expect(Invoice::where('status', 'overdue')->count())->toBe(0);
 });
 
 test('artisan command rejects invalid month format', function () {
@@ -355,7 +349,7 @@ test('artisan command rejects invalid month format', function () {
         ->assertExitCode(1);
 });
 
-// ─── InvoiceService — invoice number uniqueness ─────────────────────────────────
+// ─── Invoice numbering ────────────────────────────────────────────────────
 
 test('invoice numbers follow INV-YYYY-NNNN format', function () {
     Bus::fake();
@@ -364,8 +358,7 @@ test('invoice numbers follow INV-YYYY-NNNN format', function () {
     $property = invoiceMakeProperty();
     $contract = invoiceMakeContract($tenant, $property);
 
-    $service = app(InvoiceService::class);
-    $invoice = $service->createInvoiceForContract($contract, now()->format('Y-m'));
+    $invoice = Invoice::issueFor($contract, now()->format('Y-m'));
 
     expect($invoice->invoice_number)->toMatch('/^INV-\d{4}-\d{4}$/');
 });
