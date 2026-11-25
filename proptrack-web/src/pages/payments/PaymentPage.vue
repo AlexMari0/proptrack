@@ -6,6 +6,7 @@ import { invoiceService } from '@/services/invoiceService'
 import { useEcho } from '@/composables/useEcho'
 import PaymentStatus from '@/components/payment/PaymentStatus.vue'
 import type { Invoice } from '@/types/invoice'
+import { invoiceStatusLabel, isCancelled, isOverdue, isPaid } from '@/utils/invoiceStatus'
 import type { MidtransResult } from '@/types/payment'
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -121,8 +122,14 @@ async function loadInvoice() {
     invoice.value = res.data
 
     // Already paid — jump straight to success
-    if (invoice.value.status === 'paid') {
+    if (isPaid(invoice.value.status)) {
       state.value = 'success'
+      return
+    }
+
+    if (!invoice.value.is_payable) {
+      state.value = 'failed'
+      errorMsg.value = `This invoice is ${invoiceStatusLabel(invoice.value.status).toLowerCase()} and cannot be paid.`
       return
     }
 
@@ -206,7 +213,7 @@ function startPolling() {
       const res = await paymentService.getStatus(invoiceId)
       const status = res.data.status
 
-      if (status === 'paid') {
+      if (isPaid(status)) {
         stopPolling()
         // Refresh invoice data to show paid_at, gateway
         await loadInvoice()
@@ -214,7 +221,7 @@ function startPolling() {
         return
       }
 
-      if (status === 'cancelled') {
+      if (isCancelled(status)) {
         stopPolling()
         state.value = 'failed'
         errorMsg.value = 'Invoice was cancelled.'
@@ -322,7 +329,7 @@ function stopPolling() {
           </div>
           <div class="pay-detail">
             <span class="pay-detail__label">Due Date</span>
-            <span class="pay-detail__value" :class="{ 'pay-detail__value--danger': invoice.status === 'overdue' }">
+            <span class="pay-detail__value" :class="{ 'pay-detail__value--danger': isOverdue(invoice.status) }">
               {{ formattedDueDate }}
             </span>
           </div>

@@ -10,6 +10,21 @@ import { useReport } from '@/composables/useReport'
 import { useTenant } from '@/composables/useTenant'
 import { useNotification } from '@/composables/useNotification'
 import type { Map as LeafletMap } from 'leaflet'
+import { invoiceStatusLabel, invoiceStatusTone, isOverdue, isPaid, type InvoiceStatusTone } from '@/utils/invoiceStatus'
+
+const BADGE_BY_TONE: Record<InvoiceStatusTone, string> = {
+  positive: 'badge--green',
+  negative: 'badge--red',
+  warning: 'badge--amber',
+  neutral: 'badge--gray',
+}
+
+const KPI_BADGE_BY_TONE: Record<InvoiceStatusTone, string> = {
+  positive: 'kpi-badge--positive',
+  negative: 'kpi-badge--negative',
+  warning: 'kpi-badge--amber',
+  neutral: 'kpi-badge--neutral',
+}
 
 const { authStore, fetchProfile } = useAuth()
 const router = useRouter()
@@ -38,9 +53,9 @@ const tenantActiveContract = computed(() => activeContracts.value[0] || null)
 
 const tenantNextInvoice = computed(() => {
   if (!isTenant.value) return null
-  const unpaid = invoices.value.filter(inv => inv.status === 'unpaid' || inv.status === 'overdue')
-  if (!unpaid.length) return null
-  return [...unpaid].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0]
+  const outstanding = invoices.value.filter(inv => inv.is_outstanding)
+  if (!outstanding.length) return null
+  return [...outstanding].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0]
 })
 
 const tenantLatestInvoice = computed(() => {
@@ -230,8 +245,8 @@ onUnmounted(destroyMap)
           <section class="kpi-grid" aria-label="Key Performance Indicators">
             <!-- Next Rent Due -->
             <article class="kpi-card">
-              <div v-if="tenantNextInvoice" class="kpi-card__badge kpi-badge--amber" :class="{ 'kpi-badge--negative': tenantNextInvoice.status === 'overdue' }">
-                {{ tenantNextInvoice.status === 'overdue' ? 'Overdue' : 'Due Soon' }}
+              <div v-if="tenantNextInvoice" class="kpi-card__badge kpi-badge--amber" :class="{ 'kpi-badge--negative': isOverdue(tenantNextInvoice.status) }">
+                {{ isOverdue(tenantNextInvoice.status) ? invoiceStatusLabel(tenantNextInvoice.status) : 'Due Soon' }}
               </div>
               <div v-else class="kpi-card__badge kpi-badge--positive">Current</div>
               <p class="kpi-card__label">Next Rent Due</p>
@@ -245,8 +260,8 @@ onUnmounted(destroyMap)
 
             <!-- Latest Payment Status -->
             <article class="kpi-card">
-              <div v-if="tenantLatestInvoice" class="kpi-card__badge" :class="tenantLatestInvoice.status === 'paid' ? 'kpi-badge--positive' : (tenantLatestInvoice.status === 'overdue' ? 'kpi-badge--negative' : 'kpi-badge--amber')">
-                {{ tenantLatestInvoice.status }}
+              <div v-if="tenantLatestInvoice" class="kpi-card__badge" :class="KPI_BADGE_BY_TONE[invoiceStatusTone(tenantLatestInvoice.status)]">
+                {{ invoiceStatusLabel(tenantLatestInvoice.status) }}
               </div>
               <div v-else class="kpi-card__badge kpi-badge--neutral">None</div>
               <p class="kpi-card__label">Latest Invoice</p>
@@ -404,11 +419,7 @@ onUnmounted(destroyMap)
                 <div class="billing-timeline-info">
                   <div class="billing-timeline-header">
                     <span class="invoice-number">{{ inv.invoice_number }}</span>
-                    <span class="badge" :class="{
-                      'badge--green': inv.status === 'paid',
-                      'badge--red': inv.status === 'overdue',
-                      'badge--amber': inv.status === 'unpaid',
-                    }">{{ inv.status }}</span>
+                    <span class="badge" :class="BADGE_BY_TONE[invoiceStatusTone(inv.status)]">{{ invoiceStatusLabel(inv.status) }}</span>
                   </div>
                   <div class="invoice-meta-sub">
                     <span>Month: {{ inv.billing_month }}</span>
@@ -416,12 +427,12 @@ onUnmounted(destroyMap)
                   </div>
                 </div>
                 <div class="billing-timeline-action">
-                  <button v-if="inv.status === 'unpaid' || inv.status === 'overdue'" 
+                  <button v-if="inv.is_payable" 
                     @click="router.push(`/payments/${inv.id}`)" 
                     class="btn-primary btn-sm btn-pay-timeline">
                     Pay Now
                   </button>
-                  <button v-else-if="inv.status === 'paid'" 
+                  <button v-else-if="isPaid(inv.status)" 
                     @click="downloadInvoiceDocument(inv.id, inv.invoice_number)" 
                     class="btn-ghost btn-sm btn-download-timeline"
                     title="Download Receipt">

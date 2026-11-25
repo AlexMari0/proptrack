@@ -6,6 +6,7 @@ import { propertyService } from '@/services/propertyService'
 import { invoiceService } from '@/services/invoiceService'
 import InvoiceCard from '@/components/payment/InvoiceCard.vue'
 import type { InvoiceStatus } from '@/types/invoice'
+import { INVOICE_STATUSES, invoiceStatusLabel, isOverdue } from '@/utils/invoiceStatus'
 import type { Property } from '@/types/property'
 
 const authStore = useAuthStore()
@@ -40,13 +41,13 @@ onMounted(async () => {
   } catch { /* non-fatal */ }
 })
 
-const statusTabs = [
-  { label: 'All',       value: '' },
-  { label: 'Unpaid',    value: 'unpaid' },
-  { label: 'Overdue',   value: 'overdue' },
-  { label: 'Paid',      value: 'paid' },
-  { label: 'Cancelled', value: 'cancelled' },
-] as const
+const statusTabs: { label: string; value: InvoiceStatus | '' }[] = [
+  { label: 'All', value: '' },
+  ...INVOICE_STATUSES.map((status) => ({ label: invoiceStatusLabel(status), value: status })),
+]
+
+const showsOverdueBadge = (value: InvoiceStatus | '') =>
+  value !== '' && isOverdue(value) && overdueCount.value > 0
 
 function onStatusChange(status: InvoiceStatus | '') {
   applyFilters({ status })
@@ -93,12 +94,12 @@ async function handleDownload(id: string, invoiceNumber: string) {
           'tab',
           {
             'tab--active': filters.status === tab.value,
-            'tab--overdue-has-items': tab.value === 'overdue' && overdueCount > 0
+            'tab--overdue-has-items': showsOverdueBadge(tab.value)
           }
         ]"
-        @click="onStatusChange(tab.value as InvoiceStatus | '')">
+        @click="onStatusChange(tab.value)">
         {{ tab.label }}
-        <span v-if="tab.value === 'overdue' && overdueCount > 0" class="tab-badge tab-badge--danger">
+        <span v-if="showsOverdueBadge(tab.value)" class="tab-badge tab-badge--danger">
           {{ overdueCount }}
         </span>
       </button>

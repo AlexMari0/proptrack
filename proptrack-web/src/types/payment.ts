@@ -1,3 +1,5 @@
+import type { InvoiceStatus } from '@/types/invoice'
+
 // ─── Payment types ─────────────────────────────────────────────────────────────
 
 export interface CreateTransactionRequest {
@@ -17,7 +19,7 @@ export interface CreateTransactionResponse {
 export interface PaymentStatusResponse {
   data: {
     invoice_id: string
-    status: 'unpaid' | 'paid' | 'overdue' | 'cancelled'
+    status: InvoiceStatus
     paid_at: string | null
     payment_gateway: string | null
   }
