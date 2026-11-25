@@ -18,6 +18,18 @@ class PaymentService
         return config('services.midtrans.server_key', '');
     }
 
+    /**
+     * Payment simulation must be switched on explicitly, and never in production.
+     * When on, checkout returns a mock Snap token and `mock: true` webhooks skip
+     * signature verification.
+     */
+    public function simulationEnabled(): bool
+    {
+        return config('services.midtrans.simulate') === true
+            && ! app()->isProduction()
+            && ! config('services.midtrans.is_production');
+    }
+
     private function midtransBaseUrl(): string
     {
         $production = config('services.midtrans.is_production', false);
@@ -73,6 +85,21 @@ class PaymentService
             ],
         ];
 
+        if ($this->simulationEnabled()) {
+            Log::warning("Midtrans simulation enabled: issuing a mock transaction for {$invoice->invoice_number}.");
+            $token = 'mock-snap-token-' . \Illuminate\Support\Str::uuid();
+
+            $invoice->update([
+                'payment_token'   => $token,
+                'payment_gateway' => 'midtrans',
+            ]);
+
+            return [
+                'transaction_token' => $token,
+                'redirect_url'      => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/' . $token,
+            ];
+        }
+
         $response = Http::withHeaders([
             'Authorization' => $this->midtransAuthHeader(),
             'Content-Type'  => 'application/json',
@@ -80,27 +107,6 @@ class PaymentService
         ])->post("{$this->midtransBaseUrl()}/transactions", $payload);
 
         if ($response->failed()) {
-            // Graceful fallback for local development with placeholder/mock keys
-            if (app()->environment('local') && (
-                $this->midtransServerKey() === '' || 
-                $this->midtransServerKey() === 'mock' || 
-                env('MIDTRANS_MOCK', false) === true
-            )) {
-                Log::warning('Midtrans API failed in local environment with mock key. Gracefully falling back to a local mock transaction.');
-                $token = 'mock-snap-token-' . \Illuminate\Support\Str::uuid();
-                $redirectUrl = 'https://app.sandbox.midtrans.com/snap/v2/vtweb/' . $token;
-
-                $invoice->update([
-                    'payment_token'   => $token,
-                    'payment_gateway' => 'midtrans',
-                ]);
-
-                return [
-                    'transaction_token' => $token,
-                    'redirect_url'      => $redirectUrl,
-                ];
-            }
-
             Log::error('Midtrans transaction creation failed', [
                 'invoice_number' => $invoice->invoice_number,
                 'status'         => $response->status(),
@@ -136,8 +142,8 @@ class PaymentService
      */
     public function verifyMidtransSignature(array $payload): bool
     {
-        // Graceful mock bypass in local environment
-        if (app()->environment('local') && ($payload['mock'] ?? false) === true) {
+        // Simulated webhooks (sent by the local payment simulator) carry no signature.
+        if ($this->simulationEnabled() && ($payload['mock'] ?? false) === true) {
             return true;
         }
 

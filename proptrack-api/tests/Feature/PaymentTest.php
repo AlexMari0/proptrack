@@ -266,6 +266,80 @@ test('midtrans webhook with valid signature dispatches job', function () {
     Bus::assertDispatched(HandleMidtransWebhookJob::class);
 });
 
+// ─── Payment simulation (local dev) ──────────────────────────────────────────
+
+function paymentMockWebhook(Invoice $invoice): array
+{
+    return [
+        'order_id'           => $invoice->invoice_number,
+        'status_code'        => '200',
+        'gross_amount'       => '1500000.00',
+        'transaction_status' => 'settlement',
+        'mock'               => true,
+    ];
+}
+
+test('unsigned mock webhook is rejected when simulation is off, even in local env', function () {
+    Bus::fake();
+    $this->app['env'] = 'local';
+    config(['services.midtrans.simulate' => false]);
+    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
+        ->assertStatus(403);
+
+    Bus::assertNotDispatched(HandleMidtransWebhookJob::class);
+});
+
+test('unsigned mock webhook is accepted when simulation is on outside production', function () {
+    Bus::fake();
+    config(['services.midtrans.simulate' => true]);
+    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
+        ->assertStatus(200);
+
+    Bus::assertDispatched(HandleMidtransWebhookJob::class);
+});
+
+test('simulation is ignored in production even if switched on', function (string $how) {
+    Bus::fake();
+    config(['services.midtrans.simulate' => true]);
+    if ($how === 'app') {
+        $this->app['env'] = 'production';
+    } else {
+        config(['services.midtrans.is_production' => true]);
+    }
+    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
+        ->assertStatus(403);
+
+    Bus::assertNotDispatched(HandleMidtransWebhookJob::class);
+})->with(['app' => 'app', 'midtrans' => 'midtrans']);
+
+test('checkout returns a mock token without calling Midtrans when simulation is on', function () {
+    Http::fake();
+    config(['services.midtrans.simulate' => true]);
+    $tenant   = paymentMakeTenant();
+    $invoice  = paymentMakeInvoice(paymentMakeContract($tenant, paymentMakeProperty()));
+
+    $result = app(PaymentService::class)->createMidtransTransaction($invoice);
+
+    expect($result['transaction_token'])->toStartWith('mock-snap-token-');
+    Http::assertNothingSent();
+});
+
+test('checkout does not fall back to a mock token when simulation is off', function () {
+    Http::fake(['*' => Http::response(['error_messages' => ['unauthorized']], 401)]);
+    $this->app['env'] = 'local';
+    config(['services.midtrans.simulate' => false, 'services.midtrans.server_key' => '']);
+    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+
+    expect(fn () => app(PaymentService::class)->createMidtransTransaction($invoice))
+        ->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
 // ─── HandleMidtransWebhookJob ─────────────────────────────────────────────────
 
 test('webhook job marks invoice as paid on settlement', function () {
