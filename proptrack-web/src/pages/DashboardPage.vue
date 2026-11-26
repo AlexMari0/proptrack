@@ -955,6 +955,11 @@ onUnmounted(destroyMap)
   color: #92640a;
 }
 
+.kpi-badge--negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
 .kpi-card__label {
   font-size: 0.72rem;
   font-weight: 600;
