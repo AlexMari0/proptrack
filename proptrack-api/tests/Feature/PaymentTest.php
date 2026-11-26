@@ -1,12 +1,11 @@
 <?php
 
-use App\Jobs\HandleMidtransWebhookJob;
+use App\Jobs\SettlePaymentJob;
 use App\Models\Contract;
 use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\PaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -42,9 +41,13 @@ function paymentTenantUser(): User
     return $user;
 }
 
+/** A Tenant with a linked tenant account (the payer). */
 function paymentMakeTenant(): Tenant
 {
+    $user = paymentTenantUser();
+
     return Tenant::create([
+        'user_id'                 => $user->id,
         'name'                    => 'Budi Santoso',
         'email'                   => fake()->unique()->safeEmail(),
         'phone'                   => '081234567890',
@@ -98,7 +101,37 @@ function paymentMakeInvoice(Contract $contract, array $overrides = []): Invoice
     ], $overrides));
 }
 
-// ─── create-transaction ────────────────────────────────────────────────────────
+/** POST a create-transaction request as the invoice's own tenant. */
+function paymentCheckout($test, Invoice $invoice, string $gateway = 'midtrans')
+{
+    return $test->actingAs($invoice->tenant->user)
+        ->postJson('/api/v1/payments/create-transaction', ['invoice_id' => $invoice->id, 'gateway' => $gateway]);
+}
+
+/** A Midtrans notification signed with the configured server key. */
+function paymentSignedNotification(Invoice $invoice, array $overrides = []): array
+{
+    $payload = array_merge([
+        'order_id'           => $invoice->invoice_number,
+        'status_code'        => '200',
+        'gross_amount'       => number_format($invoice->amount, 2, '.', ''),
+        'transaction_status' => 'settlement',
+        'fraud_status'       => 'accept',
+    ], $overrides);
+
+    $payload['signature_key'] = hash('sha512',
+        $payload['order_id'] . $payload['status_code'] . $payload['gross_amount'] . config('services.midtrans.server_key')
+    );
+
+    return $payload;
+}
+
+function paymentInvoice(array $overrides = []): Invoice
+{
+    return paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()), $overrides);
+}
+
+// ─── Checkout ─────────────────────────────────────────────────────────────────
 
 test('unauthenticated cannot create transaction', function () {
     $this->postJson('/api/v1/payments/create-transaction', [
@@ -107,167 +140,163 @@ test('unauthenticated cannot create transaction', function () {
     ])->assertStatus(401);
 });
 
-test('create-transaction validates invoice_id exists', function () {
-    $this->actingAs(paymentOwner())
-        ->postJson('/api/v1/payments/create-transaction', [
-            'invoice_id' => fake()->uuid(),
-            'gateway'    => 'midtrans',
-        ])->assertStatus(422)
+test('create-transaction validates invoice_id and gateway', function () {
+    $this->actingAs(paymentTenantUser())
+        ->postJson('/api/v1/payments/create-transaction', ['invoice_id' => fake()->uuid(), 'gateway' => 'midtrans'])
+        ->assertStatus(422)
         ->assertJsonValidationErrors(['invoice_id']);
-});
 
-test('create-transaction validates gateway is midtrans', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $this->actingAs(paymentOwner())
-        ->postJson('/api/v1/payments/create-transaction', [
-            'invoice_id' => $invoice->id,
-            'gateway'    => 'unknown',
-        ])->assertStatus(422)
+    paymentCheckout($this, paymentInvoice(), 'unknown')
+        ->assertStatus(422)
         ->assertJsonValidationErrors(['gateway']);
 });
 
-test('create-transaction returns token from midtrans', function () {
+test('the tenant opens a Midtrans checkout for their invoice', function () {
     Http::fake([
         '*midtrans*' => Http::response([
             'token'        => 'snap-token-abc123',
             'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-abc123',
         ], 200),
     ]);
+    $invoice = paymentInvoice();
 
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $response = $this->actingAs(paymentOwner())
-        ->postJson('/api/v1/payments/create-transaction', [
-            'invoice_id' => $invoice->id,
-            'gateway'    => 'midtrans',
-        ])->assertStatus(200)
-        ->assertJsonStructure(['data' => ['transaction_token', 'redirect_url', 'invoice_id']])
+    paymentCheckout($this, $invoice)
+        ->assertStatus(200)
         ->assertJsonPath('data.transaction_token', 'snap-token-abc123')
+        ->assertJsonPath('data.simulated', false)
         ->assertJsonPath('data.invoice_id', $invoice->id);
 
-    // Token must be persisted on the invoice
     expect($invoice->fresh()->payment_token)->toBe('snap-token-abc123');
-    expect($invoice->fresh()->payment_gateway)->toBe('midtrans');
+    Http::assertSent(fn ($request) => $request['transaction_details']['order_id'] === $invoice->invoice_number
+        && $request['transaction_details']['gross_amount'] === 1500000);
 });
 
-test('cannot create transaction for already paid invoice', function () {
+test('only the invoice\'s own tenant can open a checkout', function () {
+    Http::fake();
+    $invoice = paymentInvoice();
+
+    $this->actingAs(paymentOwner())
+        ->postJson('/api/v1/payments/create-transaction', ['invoice_id' => $invoice->id, 'gateway' => 'midtrans'])
+        ->assertStatus(403);
+
+    $this->actingAs(paymentMakeTenant()->user)
+        ->postJson('/api/v1/payments/create-transaction', ['invoice_id' => $invoice->id, 'gateway' => 'midtrans'])
+        ->assertStatus(403);
+
+    Http::assertNothingSent();
+});
+
+test('a paid invoice cannot be checked out', function () {
     Http::fake();
 
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract, ['status' => 'paid', 'paid_at' => now()]);
-
-    $this->actingAs(paymentOwner())
-        ->postJson('/api/v1/payments/create-transaction', [
-            'invoice_id' => $invoice->id,
-            'gateway'    => 'midtrans',
-        ])->assertStatus(422)
+    paymentCheckout($this, paymentInvoice(['status' => 'paid', 'paid_at' => now()]))
+        ->assertStatus(422)
         ->assertJsonValidationErrors(['invoice_id']);
+
+    Http::assertNothingSent();
 });
 
-test('create-transaction returns 422 when midtrans API fails', function () {
-    Http::fake([
-        '*midtrans*' => Http::response(['error_messages' => ['Server key required']], 401),
-    ]);
+test('a Midtrans failure is a 422 gateway error, never a mock token', function () {
+    Http::fake(['*midtrans*' => Http::response(['error_messages' => ['Server key required']], 401)]);
+    $this->app['env'] = 'local';
 
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $this->actingAs(paymentOwner())
-        ->postJson('/api/v1/payments/create-transaction', [
-            'invoice_id' => $invoice->id,
-            'gateway'    => 'midtrans',
-        ])->assertStatus(422)
+    paymentCheckout($this, paymentInvoice())
+        ->assertStatus(422)
         ->assertJsonValidationErrors(['gateway']);
 });
 
-// ─── status ────────────────────────────────────────────────────────────────────
+// ─── Status polling ───────────────────────────────────────────────────────────
 
-test('can poll payment status for unpaid invoice', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
+test('status polling returns the effective status', function () {
+    $unpaid = paymentInvoice();
+    $paid = paymentInvoice(['status' => 'paid', 'paid_at' => now(), 'payment_gateway' => 'midtrans']);
 
     $this->actingAs(paymentOwner())
-        ->getJson("/api/v1/payments/{$invoice->id}/status")
+        ->getJson("/api/v1/payments/{$unpaid->id}/status")
         ->assertStatus(200)
         ->assertJsonPath('data.status', 'unpaid')
-        ->assertJsonPath('data.invoice_id', $invoice->id)
+        ->assertJsonPath('data.invoice_id', $unpaid->id)
         ->assertJsonStructure(['data' => ['invoice_id', 'status', 'paid_at', 'payment_gateway']]);
-});
-
-test('status shows paid for paid invoice', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract, [
-        'status'          => 'paid',
-        'paid_at'         => now(),
-        'payment_gateway' => 'midtrans',
-    ]);
 
     $this->actingAs(paymentOwner())
-        ->getJson("/api/v1/payments/{$invoice->id}/status")
-        ->assertStatus(200)
+        ->getJson("/api/v1/payments/{$paid->id}/status")
         ->assertJsonPath('data.status', 'paid')
         ->assertJsonPath('data.payment_gateway', 'midtrans');
 });
 
-// ─── Webhook ──────────────────────────────────────────────────────────────────
+// ─── Midtrans notifications ───────────────────────────────────────────────────
+// QUEUE_CONNECTION=sync in tests, so SettlePaymentJob runs inline.
 
-test('midtrans webhook endpoint is public (no auth required)', function () {
-    // Valid signature not checked here — just verifying no 401
+test('the webhook is public and rejects a missing or bad signature', function () {
+    $invoice = paymentInvoice();
+
     $this->postJson('/api/v1/payments/webhook/midtrans', [])->assertStatus(403);
-    // 403 means it reached the controller (invalid sig) not a 401
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', ['signature_key' => 'invalid'] + paymentSignedNotification($invoice))
+        ->assertStatus(403)
+        ->assertJsonPath('message', 'Invalid signature');
+
+    expect($invoice->fresh()->status)->toBe('unpaid');
 });
 
-test('midtrans webhook rejects invalid signature', function () {
-    $this->postJson('/api/v1/payments/webhook/midtrans', [
-        'order_id'         => 'INV-2025-0001',
-        'status_code'      => '200',
-        'gross_amount'     => '1500000.00',
-        'signature_key'    => 'invalid',
-        'transaction_status' => 'settlement',
-    ])->assertStatus(403)
-      ->assertJsonPath('message', 'Invalid signature');
+test('a signed settlement marks the invoice paid via midtrans', function (array $status) {
+    $invoice = paymentInvoice();
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentSignedNotification($invoice, $status))
+        ->assertStatus(200)
+        ->assertJsonPath('message', 'Webhook received');
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('paid')
+        ->and($invoice->paid_at)->not->toBeNull()
+        ->and($invoice->payment_gateway)->toBe('midtrans');
+})->with([
+    'settlement'     => [['transaction_status' => 'settlement']],
+    'capture+accept' => [['transaction_status' => 'capture', 'fraud_status' => 'accept']],
+]);
+
+test('non-final or failed notifications leave the invoice unpaid', function (array $status) {
+    $invoice = paymentInvoice();
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentSignedNotification($invoice, $status))
+        ->assertStatus(200);
+
+    expect($invoice->fresh()->status)->toBe('unpaid');
+})->with([
+    'pending'           => [['transaction_status' => 'pending']],
+    'capture+challenge' => [['transaction_status' => 'capture', 'fraud_status' => 'challenge']],
+    'deny'              => [['transaction_status' => 'deny']],
+    'expire'            => [['transaction_status' => 'expire']],
+]);
+
+test('a settlement for the wrong amount is ignored', function () {
+    $invoice = paymentInvoice();
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentSignedNotification($invoice, ['gross_amount' => '1000.00']))
+        ->assertStatus(200);
+
+    expect($invoice->fresh()->status)->toBe('unpaid');
 });
 
-test('midtrans webhook with valid signature dispatches job', function () {
+test('a repeated settlement is idempotent', function () {
+    $invoice = paymentInvoice(['status' => 'paid', 'paid_at' => now()->subDay(), 'payment_gateway' => 'midtrans']);
+    $paidAt = $invoice->paid_at->toIso8601String();
+
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentSignedNotification($invoice))
+        ->assertStatus(200);
+
+    expect($invoice->fresh()->paid_at->toIso8601String())->toBe($paidAt);
+});
+
+test('settlement is queued, not run in the request', function () {
     Bus::fake();
+    $invoice = paymentInvoice();
 
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentSignedNotification($invoice))
+        ->assertStatus(200);
 
-    $serverKey   = config('services.midtrans.server_key', '');
-    $orderId     = $invoice->invoice_number;
-    $statusCode  = '200';
-    $grossAmount = '1500000.00';
-    $signature   = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
-
-    $this->postJson('/api/v1/payments/webhook/midtrans', [
-        'order_id'           => $orderId,
-        'status_code'        => $statusCode,
-        'gross_amount'       => $grossAmount,
-        'signature_key'      => $signature,
-        'transaction_status' => 'settlement',
-        'fraud_status'       => 'accept',
-    ])->assertStatus(200)
-      ->assertJsonPath('message', 'Webhook received');
-
-    Bus::assertDispatched(HandleMidtransWebhookJob::class);
+    Bus::assertDispatched(SettlePaymentJob::class, fn ($job) => $job->notification['invoiceNumber'] === $invoice->invoice_number);
+    expect($invoice->fresh()->status)->toBe('unpaid');
 });
 
 // ─── Payment simulation (local dev) ──────────────────────────────────────────
@@ -277,158 +306,55 @@ function paymentMockWebhook(Invoice $invoice): array
     return [
         'order_id'           => $invoice->invoice_number,
         'status_code'        => '200',
-        'gross_amount'       => '1500000.00',
+        'gross_amount'       => (string) $invoice->amount,
         'transaction_status' => 'settlement',
         'mock'               => true,
     ];
 }
 
-test('unsigned mock webhook is rejected when simulation is off, even in local env', function () {
-    Bus::fake();
-    $this->app['env'] = 'local';
-    config(['services.midtrans.simulate' => false]);
-    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+test('with simulation on, checkout is simulated and the simulator settles the invoice', function () {
+    Http::fake();
+    config(['services.midtrans.simulate' => true]);
+    $invoice = paymentInvoice();
 
-    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
-        ->assertStatus(403);
+    paymentCheckout($this, $invoice)
+        ->assertStatus(200)
+        ->assertJsonPath('data.simulated', true);
 
-    Bus::assertNotDispatched(HandleMidtransWebhookJob::class);
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))->assertStatus(200);
+
+    expect($invoice->fresh()->status)->toBe('paid')
+        ->and($invoice->fresh()->payment_gateway)->toBe('simulated');
+    Http::assertNothingSent();
 });
 
-test('unsigned mock webhook is accepted when simulation is on outside production', function () {
-    Bus::fake();
-    config(['services.midtrans.simulate' => true]);
-    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+test('unsigned mock webhook is rejected when simulation is off, even in local env', function () {
+    $this->app['env'] = 'local';
+    config(['services.midtrans.simulate' => false]);
+    $invoice = paymentInvoice();
 
-    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
-        ->assertStatus(200);
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))->assertStatus(403);
 
-    Bus::assertDispatched(HandleMidtransWebhookJob::class);
+    expect($invoice->fresh()->status)->toBe('unpaid');
 });
 
 test('simulation is ignored in production even if switched on', function (string $how) {
-    Bus::fake();
+    Http::fake(['*midtrans*' => Http::response(['token' => 't', 'redirect_url' => 'https://x'], 200)]);
     config(['services.midtrans.simulate' => true]);
     if ($how === 'app') {
         $this->app['env'] = 'production';
     } else {
         config(['services.midtrans.is_production' => true]);
     }
-    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
+    $invoice = paymentInvoice();
 
-    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))
-        ->assertStatus(403);
-
-    Bus::assertNotDispatched(HandleMidtransWebhookJob::class);
-})->with(['app' => 'app', 'midtrans' => 'midtrans']);
-
-test('checkout returns a mock token without calling Midtrans when simulation is on', function () {
-    Http::fake();
-    config(['services.midtrans.simulate' => true]);
-    $tenant   = paymentMakeTenant();
-    $invoice  = paymentMakeInvoice(paymentMakeContract($tenant, paymentMakeProperty()));
-
-    $result = app(PaymentService::class)->createMidtransTransaction($invoice);
-
-    expect($result['transaction_token'])->toStartWith('mock-snap-token-');
-    Http::assertNothingSent();
-});
-
-test('checkout does not fall back to a mock token when simulation is off', function () {
-    Http::fake(['*' => Http::response(['error_messages' => ['unauthorized']], 401)]);
-    $this->app['env'] = 'local';
-    config(['services.midtrans.simulate' => false, 'services.midtrans.server_key' => '']);
-    $invoice = paymentMakeInvoice(paymentMakeContract(paymentMakeTenant(), paymentMakeProperty()));
-
-    expect(fn () => app(PaymentService::class)->createMidtransTransaction($invoice))
-        ->toThrow(\Illuminate\Validation\ValidationException::class);
-});
-
-// ─── HandleMidtransWebhookJob ─────────────────────────────────────────────────
-
-test('webhook job marks invoice as paid on settlement', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $job = new HandleMidtransWebhookJob([
-        'order_id'           => $invoice->invoice_number,
-        'transaction_status' => 'settlement',
-        'fraud_status'       => 'accept',
-        'status_code'        => '200',
-        'gross_amount'       => '1500000.00',
-    ]);
-    $job->handle(app(PaymentService::class));
-
-    expect($invoice->fresh()->status)->toBe('paid');
-    expect($invoice->fresh()->paid_at)->not->toBeNull();
-    expect($invoice->fresh()->payment_gateway)->toBe('midtrans');
-});
-
-test('webhook job marks invoice as paid on capture+accept', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $job = new HandleMidtransWebhookJob([
-        'order_id'           => $invoice->invoice_number,
-        'transaction_status' => 'capture',
-        'fraud_status'       => 'accept',
-        'status_code'        => '200',
-        'gross_amount'       => '1500000.00',
-    ]);
-    $job->handle(app(PaymentService::class));
-
-    expect($invoice->fresh()->status)->toBe('paid');
-});
-
-test('webhook job ignores pending status', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract);
-
-    $job = new HandleMidtransWebhookJob([
-        'order_id'           => $invoice->invoice_number,
-        'transaction_status' => 'pending',
-        'fraud_status'       => '',
-        'status_code'        => '201',
-        'gross_amount'       => '1500000.00',
-    ]);
-    $job->handle(app(PaymentService::class));
+    $this->postJson('/api/v1/payments/webhook/midtrans', paymentMockWebhook($invoice))->assertStatus(403);
+    paymentCheckout($this, $invoice)->assertJsonPath('data.simulated', false);
 
     expect($invoice->fresh()->status)->toBe('unpaid');
-});
+})->with(['app' => 'app', 'midtrans' => 'midtrans']);
 
-test('webhook job is idempotent — does not double-process paid invoice', function () {
-    $tenant   = paymentMakeTenant();
-    $property = paymentMakeProperty();
-    $contract = paymentMakeContract($tenant, $property);
-    $invoice  = paymentMakeInvoice($contract, [
-        'status'          => 'paid',
-        'paid_at'         => now()->subMinute(),
-        'payment_gateway' => 'midtrans',
-    ]);
-
-    $originalPaidAt = $invoice->paid_at;
-
-    $job = new HandleMidtransWebhookJob([
-        'order_id'           => $invoice->invoice_number,
-        'transaction_status' => 'settlement',
-        'fraud_status'       => 'accept',
-        'status_code'        => '200',
-        'gross_amount'       => '1500000.00',
-    ]);
-    $job->handle(app(PaymentService::class));
-
-    // paid_at should not have changed
-    expect($invoice->fresh()->paid_at->toDateTimeString())
-        ->toBe($originalPaidAt->toDateTimeString());
-});
-
-// ─── Xendit webhook placeholder ───────────────────────────────────────────────
+// ─── Xendit ───────────────────────────────────────────────────────────────────
 
 test('xendit webhook returns 200', function () {
     $this->postJson('/api/v1/payments/webhook/xendit', [])->assertStatus(200);

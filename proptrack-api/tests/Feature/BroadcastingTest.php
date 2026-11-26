@@ -306,10 +306,8 @@ test('PaymentConfirmed event is broadcasted on payment success', function () {
     $contract = broadcastingMakeContract($tenant, $property);
     $invoice = broadcastingMakeInvoice($contract);
 
-    $service = new \App\Services\PaymentService();
-    
-    // We mark payment as success, which should fire the PaymentConfirmed broadcast event
-    $service->handlePaymentSuccess($invoice->invoice_number, 'midtrans');
+    // Settling the payment should fire the PaymentConfirmed broadcast event
+    $invoice->markPaid('midtrans');
 
     Event::assertDispatched(PaymentConfirmed::class, function ($event) use ($invoice) {
         return (string) $event->invoice['id'] === (string) $invoice->id 

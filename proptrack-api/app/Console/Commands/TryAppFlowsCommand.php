@@ -11,7 +11,6 @@ use App\Models\Ticket;
 use App\Services\PropertyService;
 use App\Services\TenantService;
 use App\Services\ContractService;
-use App\Services\PaymentService;
 use App\Services\TicketService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +39,6 @@ class TryAppFlowsCommand extends Command
         PropertyService $propertyService,
         TenantService $tenantService,
         ContractService $contractService,
-        PaymentService $paymentService,
         TicketService $ticketService
     ) {
         $this->info("\n========================================================");
@@ -178,11 +176,14 @@ class TryAppFlowsCommand extends Command
             );
             $payload['signature_key'] = $signatureKey;
 
-            $signatureMatched = $paymentService->verifyMidtransSignature($payload);
-            $this->line("   [OK] Midtrans signature key validation: " . ($signatureMatched ? "PASSED (Secure)" : "FAILED"));
+            $midtrans = new \App\Payments\MidtransGateway((string) config('services.midtrans.server_key', ''), false);
+            $notification = $midtrans->parseNotification($payload);
+            $this->line("   [OK] Midtrans signature key validation: " . ($notification ? "PASSED (Secure)" : "FAILED"));
 
-            // Handle successful webhook trigger
-            $paymentService->handlePaymentSuccess($invoice->invoice_number, 'midtrans');
+            // Settle exactly as the webhook job would
+            if ($notification) {
+                (new \App\Payments\Payments($midtrans))->settle($notification);
+            }
 
             $invoice->refresh();
             $this->line("   [OK] Invoice status updated securely in DB: '{$invoice->status}'");

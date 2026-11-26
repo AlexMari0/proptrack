@@ -51,5 +51,12 @@ _Avoid_: Late, past-due status
 **Paid**:
 An Invoice whose payment has been settled by the payment gateway. Paid is final.
 
+**Checkout**:
+A Tenant's attempt to pay one Invoice in full through the payment gateway. Only the Invoice's own Tenant can start one.
+
+**Settlement**:
+The payment gateway's confirmation that the money for an Invoice arrived, for the Invoice's exact amount. Only a Settlement makes an Invoice Paid.
+_Avoid_: Callback, webhook success
+
 **Payable**:
 An Invoice a Tenant can pay right now. Today every Outstanding Invoice is Payable.

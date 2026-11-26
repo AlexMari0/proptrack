@@ -11,6 +11,7 @@ export interface CreateTransactionResponse {
   data: {
     transaction_token: string
     redirect_url: string
+    simulated: boolean   // true: local payment simulator, no Midtrans involved
     invoice_id: string
   }
   message: string

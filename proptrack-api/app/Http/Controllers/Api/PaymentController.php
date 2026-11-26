@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Services\PaymentService;
+use App\Payments\Payments;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PaymentService $paymentService)
+    public function __construct(private readonly Payments $payments)
     {
     }
 
@@ -27,14 +27,15 @@ class PaymentController extends Controller
 
         $invoice = Invoice::with(['tenant', 'property'])->findOrFail($validated['invoice_id']);
 
-        $this->authorize('view', $invoice);
+        $this->authorize('pay', $invoice);
 
-        $result = $this->paymentService->createMidtransTransaction($invoice);
+        $checkout = $this->payments->startCheckout($invoice);
 
         return response()->json([
             'data' => [
-                'transaction_token' => $result['transaction_token'],
-                'redirect_url'      => $result['redirect_url'],
+                'transaction_token' => $checkout->token,
+                'redirect_url'      => $checkout->redirectUrl,
+                'simulated'         => $checkout->simulated,
                 'invoice_id'        => $invoice->id,
             ],
             'message' => 'Transaction created',
@@ -47,14 +48,9 @@ class PaymentController extends Controller
      */
     public function midtransWebhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
-
-        // Verify signature before doing anything
-        if (! $this->paymentService->verifyMidtransSignature($payload)) {
+        if (! $this->payments->receiveNotification($request->all())) {
             return response()->json(['message' => 'Invalid signature'], 403);
         }
-
-        $this->paymentService->dispatchMidtransWebhook($payload);
 
         return response()->json(['message' => 'Webhook received']);
     }
@@ -77,7 +73,12 @@ class PaymentController extends Controller
         $this->authorize('view', $invoice);
 
         return response()->json([
-            'data'    => $this->paymentService->getInvoiceStatus($invoice),
+            'data'    => [
+                'invoice_id'      => $invoice->id,
+                'status'          => $invoice->effectiveStatus(),
+                'paid_at'         => $invoice->paid_at?->toIso8601String(),
+                'payment_gateway' => $invoice->payment_gateway,
+            ],
             'message' => 'Success',
         ]);
     }

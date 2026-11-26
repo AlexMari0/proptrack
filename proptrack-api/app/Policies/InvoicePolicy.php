@@ -18,6 +18,12 @@ class InvoicePolicy
         return Invoice::visibleTo($user)->whereKey($invoice->getKey())->exists();
     }
 
+    /** Only the Invoice's own Tenant pays it. */
+    public function pay(User $user, Invoice $invoice): bool
+    {
+        return $user->hasRole('tenant') && $this->view($user, $invoice);
+    }
+
     public function send(User $user, Invoice $invoice): bool
     {
         return $user->hasAnyRole(['owner', 'admin']) && $this->view($user, $invoice);

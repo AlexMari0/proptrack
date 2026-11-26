@@ -162,8 +162,8 @@ async function handlePay() {
 
     const token = res.data.transaction_token
 
-    // Intercept mock tokens in local environment to show interactive developer simulation
-    if (token.startsWith('mock-snap-token-')) {
+    // The API runs the local payment simulator instead of Midtrans (MIDTRANS_SIMULATE)
+    if (res.data.simulated) {
       showMockModal.value = true
       return
     }
@@ -379,7 +379,7 @@ function stopPolling() {
             </svg>
             <span class="mock-modal__title">Local Payment Simulator</span>
           </div>
-          <p class="mock-modal__sub">A mock Midtrans token was generated in local environment. Choose an action to simulate a gateway response:</p>
+          <p class="mock-modal__sub">Payment simulation is on (MIDTRANS_SIMULATE), so Midtrans is not involved. Choose how the payment should end:</p>
         </header>
 
         <div class="mock-modal__details">
