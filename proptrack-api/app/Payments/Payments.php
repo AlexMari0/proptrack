@@ -2,6 +2,7 @@
 
 namespace App\Payments;
 
+use App\Audit\AuditContext;
 use App\Exceptions\InvalidInvoiceTransition;
 use App\Jobs\SettlePaymentJob;
 use App\Models\Invoice;
@@ -87,7 +88,12 @@ class Payments
 
         try {
             // Notification and PaymentConfirmed broadcast happen in the InvoicePaid listener.
-            if ($invoice->markPaid($notification->gateway)) {
+            $paid = app(AuditContext::class)->actingAs(
+                "gateway:{$notification->gateway}",
+                fn () => $invoice->markPaid($notification->gateway),
+            );
+
+            if ($paid) {
                 Log::info("Invoice paid: {$invoice->invoice_number} via {$notification->gateway}");
             }
         } catch (InvalidInvoiceTransition $e) {

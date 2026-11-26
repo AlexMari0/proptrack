@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\TicketOpened;
+use App\Events\TicketStatusChanged;
 use App\Models\Contract;
 use App\Models\Ticket;
 use App\Models\TicketComment;
@@ -66,11 +68,7 @@ class TicketService
             ]);
         });
 
-        // Notify agents and admins
-        $recipients = \App\Models\User::role(['agent', 'admin'])->get();
-        foreach ($recipients as $recipient) {
-            $recipient->notify(new \App\Notifications\NewTicketNotification($ticket));
-        }
+        TicketOpened::dispatch($ticket);
 
         return $ticket;
     }
@@ -89,14 +87,8 @@ class TicketService
 
         $ticket->update($updateData);
 
-        // If status changed, notify tenant
         if ($oldStatus !== $status) {
-            $tenantUser = $ticket->submittedBy;
-            if ($tenantUser) {
-                $tenantUser->notify(new \App\Notifications\TicketStatusChangedNotification($ticket));
-            }
-            // Broadcast ticket status updated event
-            event(new \App\Events\TicketStatusUpdated($ticket));
+            TicketStatusChanged::dispatch($ticket);
         }
 
         return $ticket->fresh(['property', 'submittedBy', 'assignedTo', 'comments']);

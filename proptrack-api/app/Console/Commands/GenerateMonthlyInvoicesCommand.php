@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\InvoiceService;
+use App\Audit\AuditContext;
 use App\Models\Invoice;
 use Illuminate\Console\Command;
 
@@ -33,7 +34,10 @@ class GenerateMonthlyInvoicesCommand extends Command
 
         $this->info("Generating invoices for billing month: {$month}");
 
-        $created = $this->invoiceService->generateMonthlyInvoices($month);
+        $created = app(AuditContext::class)->actingAs(
+            'system:invoices:generate',
+            fn () => $this->invoiceService->generateMonthlyInvoices($month),
+        );
 
         $this->info("Done. {$created} invoice(s) created.");
 

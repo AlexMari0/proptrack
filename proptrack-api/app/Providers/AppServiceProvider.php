@@ -4,9 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
-use Illuminate\Support\Facades\Event;
-use Illuminate\Notifications\Events\NotificationSent as LaravelNotificationSent;
-use App\Listeners\SendRealtimeNotification;
+use App\Audit\AuditContext;
 use App\Payments\MidtransGateway;
 use App\Payments\PaymentGateway;
 use App\Payments\SimulatedGateway;
@@ -18,6 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(AuditContext::class);
+
         // Payment simulation must be switched on explicitly and is never used in production.
         $this->app->bind(PaymentGateway::class, function () {
             $simulate = config('services.midtrans.simulate') === true
@@ -38,9 +38,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Event::listen(
-            LaravelNotificationSent::class,
-            SendRealtimeNotification::class
-        );
+        // Listeners in app/Listeners are auto-discovered; registering them here too
+        // ran SendRealtimeNotification twice per database notification.
     }
 }
