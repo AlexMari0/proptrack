@@ -12,7 +12,9 @@ class InvoiceResource extends JsonResource
         return [
             'id'              => $this->id,
             'invoice_number'  => $this->invoice_number,
-            'status'          => $this->status,
+            'status'          => $this->effectiveStatus(),
+            'is_outstanding'  => $this->isOutstanding(),
+            'is_payable'      => $this->isPayable(),
             'amount'          => $this->amount,
             'billing_month'   => $this->billing_month,
             'due_date'        => $this->due_date?->toDateString(),

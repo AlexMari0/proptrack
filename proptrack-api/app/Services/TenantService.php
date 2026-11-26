@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class TenantService
 {
@@ -11,7 +13,20 @@ class TenantService
      */
     public function createTenant(array $data): Tenant
     {
-        $tenant = Tenant::create([
+        // Link to the account with this email (e.g. a tenant who self-registered),
+        // or create one. After this, the link is tenants.user_id, never email.
+        $user = User::where('email', $data['email'])->first();
+        if (! $user) {
+            $user = User::create([
+                'name'     => $data['name'],
+                'email'    => $data['email'],
+                'password' => Hash::make($data['id_card_number'] ?? 'password123'), // KTP as initial password
+            ]);
+            $user->assignRole('tenant');
+        }
+
+        return Tenant::create([
+            'user_id'                 => $user->id,
             'name'                    => $data['name'],
             'email'                   => $data['email'],
             'phone'                   => $data['phone'],
@@ -19,20 +34,6 @@ class TenantService
             'emergency_contact_name'  => $data['emergency_contact_name'],
             'emergency_contact_phone' => $data['emergency_contact_phone'],
         ]);
-
-        // Automatically create User account if it doesn't already exist
-        $user = \App\Models\User::where('email', $data['email'])->first();
-        if (!$user) {
-            $password = $data['id_card_number'] ?? 'password123'; // Use KTP as password, fallback to default
-            $user = \App\Models\User::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => \Illuminate\Support\Facades\Hash::make($password),
-            ]);
-            $user->assignRole('tenant');
-        }
-
-        return $tenant;
     }
 
     /**
@@ -40,8 +41,6 @@ class TenantService
      */
     public function updateTenant(Tenant $tenant, array $data): Tenant
     {
-        $oldEmail = $tenant->email;
-
         $tenant->update([
             'name'                    => $data['name'],
             'email'                   => $data['email'],
@@ -51,17 +50,11 @@ class TenantService
             'emergency_contact_phone' => $data['emergency_contact_phone'],
         ]);
 
-        // Sync with User profile
-        if ($oldEmail !== $data['email']) {
-            \App\Models\User::where('email', $oldEmail)->update([
-                'email' => $data['email'],
-                'name' => $data['name'],
-            ]);
-        } else {
-            \App\Models\User::where('email', $oldEmail)->update([
-                'name' => $data['name'],
-            ]);
-        }
+        // Keep the linked account's name and login email in step with the profile.
+        $tenant->user?->update([
+            'name'  => $data['name'],
+            'email' => $data['email'],
+        ]);
 
         return $tenant->fresh();
     }
@@ -71,8 +64,8 @@ class TenantService
      */
     public function deleteTenant(Tenant $tenant): bool
     {
-        // Delete corresponding user account too to keep internal system clean
-        \App\Models\User::where('email', $tenant->email)->delete();
+        // Delete the linked login account too to keep internal system clean
+        $tenant->user?->delete();
 
         $tenant->delete();
         return true;

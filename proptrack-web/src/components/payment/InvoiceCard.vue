@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import PaymentStatus from '@/components/payment/PaymentStatus.vue'
 import type { Invoice } from '@/types/invoice'
+import { isOverdue } from '@/utils/invoiceStatus'
 
 const props = defineProps<{
   invoice: Invoice
@@ -35,7 +36,7 @@ const formattedDueDate = computed(() =>
 )
 
 const isActionable = computed(() =>
-  props.showActions && ['unpaid', 'overdue'].includes(props.invoice.status),
+  props.showActions && props.invoice.is_payable,
 )
 
 function goToDetail() {
@@ -62,7 +63,7 @@ function goToDetail() {
       <div class="invoice-card__dates">
         <span class="invoice-card__month">{{ formattedMonth }}</span>
         <span class="invoice-card__sep">·</span>
-        <span :class="['invoice-card__due', { 'invoice-card__due--overdue': invoice.status === 'overdue' }]">
+        <span :class="['invoice-card__due', { 'invoice-card__due--overdue': isOverdue(invoice.status) }]">
           Due {{ formattedDueDate }}
         </span>
       </div>

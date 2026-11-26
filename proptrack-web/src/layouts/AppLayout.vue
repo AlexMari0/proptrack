@@ -32,7 +32,7 @@ const toggleNotifications = () => {
 }
 
 const openTicketsCount = computed(() => tickets.value.filter(t => t.status === 'open').length)
-const unpaidInvoicesCount = computed(() => invoices.value.filter(i => i.status === 'unpaid' || i.status === 'overdue').length)
+const unpaidInvoicesCount = computed(() => invoices.value.filter(i => i.is_outstanding).length)
 
 onMounted(async () => {
   if (authStore.user) {

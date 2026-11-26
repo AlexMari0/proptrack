@@ -7,8 +7,6 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
-use Spatie\LaravelPdf\Facades\Pdf;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ReportService
@@ -18,17 +16,11 @@ class ReportService
      */
     public function getFinancialSummary(User $user, int $year, ?int $month = null): array
     {
-        $invoicesQuery = Invoice::with('property')
-            ->where('status', '!=', 'cancelled');
-
-        // Scope by user roles
-        if (!$user->hasRole('admin') && $user->hasRole('owner')) {
-            $invoicesQuery->whereHas('property', function ($query) use ($user) {
-                $query->where('owner_id', $user->id);
-            });
-        } elseif (!$user->hasRole('admin')) {
+        if (! $user->hasAnyRole(['admin', 'owner'])) {
             $this->denyAccess();
         }
+
+        $invoicesQuery = Invoice::visibleTo($user)->with('property')->notCancelled();
 
         $period = $this->applyPeriodFilter($invoicesQuery, $year, $month);
         $invoices = $invoicesQuery->get();
@@ -79,7 +71,7 @@ class ReportService
 
         $invoicesQuery = Invoice::with('property')
             ->where('property_id', $property->id)
-            ->where('status', '!=', 'cancelled');
+            ->notCancelled();
 
         $period = $this->applyPeriodFilter($invoicesQuery, $year, $month);
         $invoices = $invoicesQuery->get();
@@ -102,40 +94,6 @@ class ReportService
             'collection_rate'   => $metrics['collection_rate'],
             'by_property'       => $byProperty,
         ];
-    }
-
-    /**
-     * Generate or retrieve report PDF path.
-     */
-    public function getOrGeneratePdf(array $data): string
-    {
-        $hash = md5(json_encode($data));
-        $path = "reports/report-{$hash}.pdf";
-
-        if (!Storage::disk('local')->exists($path)) {
-            $this->generatePdf($data, $path);
-        }
-
-        return Storage::disk('local')->path($path);
-    }
-
-    /**
-     * Generate a PDF report and write it to local storage.
-     */
-    public function generatePdf(array $data, string $storagePath): void
-    {
-        $pdf = Pdf::view('pdf.financial-report', [
-            'data' => $data,
-        ]);
-
-        $absolutePath = Storage::disk('local')->path($storagePath);
-        $dir = dirname($absolutePath);
-
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $pdf->save($absolutePath);
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
@@ -162,8 +120,8 @@ class ReportService
     private function calculateMetrics(Collection $invoices): array
     {
         $invoiced = $invoices->sum('amount');
-        $collected = $invoices->where('status', 'paid')->sum('amount');
-        $outstanding = $invoices->whereIn('status', ['unpaid', 'overdue'])->sum('amount');
+        $collected = $invoices->filter->isPaid()->sum('amount');
+        $outstanding = $invoices->filter->isOutstanding()->sum('amount');
         $collectionRate = $invoiced > 0 ? round(($collected / $invoiced) * 100, 1) : 0.0;
 
         return [

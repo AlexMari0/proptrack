@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Audit\AuditContext;
 use App\Models\AuditLog;
 use Illuminate\Database\Eloquent\Model;
 
@@ -57,10 +58,12 @@ trait Auditable
     protected function logAudit(string $action, ?array $old, ?array $new): void
     {
         $userId = auth()->id();
-        $ip = request() ? request()->ip() : null;
+        // No client IP outside an HTTP request (queue workers, scheduler, artisan).
+        $ip = app()->runningInConsole() && ! app()->runningUnitTests() ? null : request()?->ip();
 
         AuditLog::create([
             'user_id'    => $userId,
+            'source'     => app(AuditContext::class)->source($userId),
             'action'     => $action,
             'model_type' => get_class($this),
             'model_id'   => $this->getKey(),

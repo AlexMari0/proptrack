@@ -19,7 +19,9 @@ export interface InvoiceProperty {
 export interface Invoice {
   id: string
   invoice_number: string
-  status: InvoiceStatus
+  status: InvoiceStatus      // effective status: overdue is decided by the API
+  is_outstanding: boolean    // still owed (unpaid or overdue)
+  is_payable: boolean        // the tenant can pay it now
   amount: number
   billing_month: string   // "YYYY-MM"
   due_date: string        // "YYYY-MM-DD"

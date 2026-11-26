@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useInvoice } from '@/composables/useInvoice'
 import { useAuthStore } from '@/stores/auth'
 import PaymentStatus from '@/components/payment/PaymentStatus.vue'
+import { isOverdue } from '@/utils/invoiceStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,7 +33,7 @@ const formattedMonth = computed(() => {
 })
 
 const isActionable = computed(() =>
-  selectedInvoice.value && ['unpaid', 'overdue'].includes(selectedInvoice.value.status),
+  selectedInvoice.value?.is_payable ?? false,
 )
 
 onMounted(() => fetchInvoice(route.params.id as string))
@@ -114,9 +115,9 @@ async function handleDownload() {
             <span class="info-item__label">Billing period</span>
             <span>{{ formattedMonth }}</span>
           </div>
-          <div class="info-item" :style="selectedInvoice.status === 'overdue' ? 'background:rgba(239,68,68,0.04);border-color:rgba(239,68,68,0.2);border-radius:8px;padding:8px' : ''">
+          <div class="info-item" :style="isOverdue(selectedInvoice.status) ? 'background:rgba(239,68,68,0.04);border-color:rgba(239,68,68,0.2);border-radius:8px;padding:8px' : ''">
             <span class="info-item__label">Due date</span>
-            <span :style="selectedInvoice.status === 'overdue' ? 'color:#dc2626;font-weight:600' : ''">
+            <span :style="isOverdue(selectedInvoice.status) ? 'color:#dc2626;font-weight:600' : ''">
               {{ new Date(selectedInvoice.due_date).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) }}
             </span>
           </div>

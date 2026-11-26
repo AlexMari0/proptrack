@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use App\Traits\Auditable;
@@ -14,6 +15,7 @@ class Tenant extends Model
     use HasFactory, HasUuids, Notifiable, Auditable;
 
     protected $fillable = [
+        'user_id',
         'name',
         'email',
         'phone',
@@ -21,6 +23,14 @@ class Tenant extends Model
         'emergency_contact_name',
         'emergency_contact_phone',
     ];
+
+    /**
+     * The login account this tenant profile belongs to, if the tenant has one.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     /**
      * Get the tenant's current active contract (if any).
@@ -51,6 +61,6 @@ class Tenant extends Model
      */
     public function getNotifiable()
     {
-        return \App\Models\User::where('email', $this->email)->first() ?? $this;
+        return $this->user ?? $this;
     }
 }

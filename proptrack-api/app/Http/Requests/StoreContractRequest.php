@@ -9,7 +9,9 @@ class StoreContractRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create', Contract::class);
+        $property = \App\Models\Property::find($this->input('property_id'));
+
+        return $this->user()->can('create', [Contract::class, $property]);
     }
 
     public function rules(): array

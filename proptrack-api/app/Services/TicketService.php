@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Events\TicketOpened;
+use App\Numbering\DocumentNumbers;
+use App\Events\TicketStatusChanged;
 use App\Models\Contract;
-use App\Models\Tenant;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
@@ -19,7 +21,7 @@ class TicketService
     {
         // If the user has a tenant role, ensure they have an active contract for the selected property
         if ($user->hasRole('tenant')) {
-            $tenant = Tenant::where('email', $user->email)->first();
+            $tenant = $user->tenantProfile;
             if (!$tenant) {
                 throw ValidationException::withMessages([
                     'property_id' => 'Tenant profile not found for this user.',
@@ -39,21 +41,7 @@ class TicketService
         }
 
         $ticket = DB::transaction(function () use ($user, $data) {
-            $year = now()->year;
-
-            // Generate unique sequential ticket number TKT-YYYY-XXXX
-            // Using lockForUpdate to ensure thread-safety
-            $lastTicket = Ticket::whereYear('created_at', $year)
-                ->lockForUpdate()
-                ->orderBy('ticket_number', 'desc')
-                ->first();
-
-            $nextSequence = 1;
-            if ($lastTicket && preg_match('/TKT-\d{4}-(\d+)/', $lastTicket->ticket_number, $matches)) {
-                $nextSequence = (int)$matches[1] + 1;
-            }
-
-            $ticketNumber = sprintf('TKT-%d-%04d', $year, $nextSequence);
+            $ticketNumber = app(DocumentNumbers::class)->next(DocumentNumbers::TICKET);
 
             return Ticket::create([
                 'ticket_number'   => $ticketNumber,
@@ -67,11 +55,7 @@ class TicketService
             ]);
         });
 
-        // Notify agents and admins
-        $recipients = \App\Models\User::role(['agent', 'admin'])->get();
-        foreach ($recipients as $recipient) {
-            $recipient->notify(new \App\Notifications\NewTicketNotification($ticket));
-        }
+        TicketOpened::dispatch($ticket);
 
         return $ticket;
     }
@@ -90,14 +74,8 @@ class TicketService
 
         $ticket->update($updateData);
 
-        // If status changed, notify tenant
         if ($oldStatus !== $status) {
-            $tenantUser = $ticket->submittedBy;
-            if ($tenantUser) {
-                $tenantUser->notify(new \App\Notifications\TicketStatusChangedNotification($ticket));
-            }
-            // Broadcast ticket status updated event
-            event(new \App\Events\TicketStatusUpdated($ticket));
+            TicketStatusChanged::dispatch($ticket);
         }
 
         return $ticket->fresh(['property', 'submittedBy', 'assignedTo', 'comments']);

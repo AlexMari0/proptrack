@@ -112,11 +112,9 @@ class AuthController extends Controller
 
         $user->save();
 
-        // Sync with Tenant profile if the user is a tenant
-        if ($user->hasRole('tenant') && $oldEmail !== $user->email) {
-            \App\Models\Tenant::where('email', $oldEmail)->update([
-                'email' => $user->email,
-            ]);
+        // Keep the linked tenant profile's contact email in step with the login email.
+        if ($oldEmail !== $user->email) {
+            $user->tenantProfile?->update(['email' => $user->email]);
         }
 
         return response()->json([

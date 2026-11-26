@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -55,5 +56,27 @@ class Ticket extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(TicketComment::class);
+    }
+
+    /**
+     * Tickets the user may see. The one rule used by the policy, list
+     * endpoint and broadcast channel: admins and agents see all, owners see
+     * their own properties', tenants see the tickets they submitted.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasAnyRole(['admin', 'agent'])) {
+            return $query;
+        }
+
+        if ($user->hasRole('owner')) {
+            return $query->whereRelation('property', 'owner_id', $user->id);
+        }
+
+        if ($user->hasRole('tenant')) {
+            return $query->where('submitted_by_id', $user->id);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

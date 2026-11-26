@@ -83,11 +83,11 @@
               <td>
                 <div class="operator-info">
                   <div class="operator-avatar">
-                    {{ log.user ? log.user.name[0].toUpperCase() : 'S' }}
+                    {{ log.user ? log.user.name[0].toUpperCase() : sourceLabel(log.source)[0] }}
                   </div>
                   <div>
-                    <p class="operator-name">{{ log.user ? log.user.name : 'System / Webhook' }}</p>
-                    <p class="operator-role">{{ log.user ? log.user.roles.join(', ') : 'automation' }}</p>
+                    <p class="operator-name">{{ log.user ? log.user.name : sourceLabel(log.source) }}</p>
+                    <p class="operator-role">{{ log.user ? log.user.roles.join(', ') : (log.source ?? 'automation') }}</p>
                   </div>
                 </div>
               </td>
@@ -161,7 +161,7 @@
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">Operator</span>
-                  <span class="meta-val">{{ activeLog.user ? activeLog.user.name : 'System / Webhook' }}</span>
+                  <span class="meta-val">{{ activeLog.user ? activeLog.user.name : sourceLabel(activeLog.source) }}</span>
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">Timestamp</span>
@@ -248,6 +248,18 @@ export default defineComponent({
       resetFilters();
     }
 
+    /** Human label for a non-user audit actor. */
+    function sourceLabel(source: string | null): string {
+      if (!source) return 'Unknown';
+      const known: Record<string, string> = {
+        'gateway:midtrans': 'Midtrans',
+        'gateway:simulated': 'Payment simulator',
+        'system:invoices:generate': 'Monthly invoicing',
+        system: 'System',
+      };
+      return known[source] ?? source;
+    }
+
     function formatDateTime(dateStr: string): string {
       return new Date(dateStr).toLocaleString('id-ID', {
         day: 'numeric',
@@ -285,6 +297,7 @@ export default defineComponent({
       onReset,
       changePage,
       formatDateTime,
+      sourceLabel,
       viewDetails,
       closeDetails
     };

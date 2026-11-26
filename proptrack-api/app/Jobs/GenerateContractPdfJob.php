@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Contract;
-use App\Services\ContractService;
+use App\Documents\Documents;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,12 +22,11 @@ class GenerateContractPdfJob implements ShouldQueue
     {
     }
 
-    public function handle(ContractService $contractService): void
+    /** Pre-render the PDF so the first download is instant. */
+    public function handle(Documents $documents): void
     {
-        $path = "contracts/contract-{$this->contract->id}.pdf";
-
         try {
-            $contractService->generatePdf($this->contract, $path);
+            $documents->contract($this->contract);
             Log::info("Contract PDF generated: {$this->contract->id}");
         } catch (\Throwable $e) {
             Log::error("Failed to generate contract PDF: {$this->contract->id}", [

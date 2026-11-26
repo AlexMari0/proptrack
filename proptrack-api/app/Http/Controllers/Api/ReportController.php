@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Documents\Documents;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReportResource;
 use App\Models\Property;
@@ -88,7 +89,7 @@ class ReportController extends Controller
             );
         }
 
-        $pdfPath = $this->reportService->getOrGeneratePdf($summary);
+        $pdfPath = app(Documents::class)->financialReport($summary);
 
         return response()->download(
             $pdfPath,

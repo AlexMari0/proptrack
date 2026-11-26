@@ -57,8 +57,8 @@ export const paymentService = {
   },
 
   /**
-   * Simulate a payment success webhook locally.
-   * Only works in local dev environment with mock parameter.
+   * Send the local payment simulator's notification.
+   * Accepted only when the API has MIDTRANS_SIMULATE on outside production.
    */
   async simulateWebhook(payload: {
     order_id: string

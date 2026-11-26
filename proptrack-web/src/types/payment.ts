@@ -1,3 +1,5 @@
+import type { InvoiceStatus } from '@/types/invoice'
+
 // ─── Payment types ─────────────────────────────────────────────────────────────
 
 export interface CreateTransactionRequest {
@@ -9,6 +11,7 @@ export interface CreateTransactionResponse {
   data: {
     transaction_token: string
     redirect_url: string
+    simulated: boolean   // true: local payment simulator, no Midtrans involved
     invoice_id: string
   }
   message: string
@@ -17,7 +20,7 @@ export interface CreateTransactionResponse {
 export interface PaymentStatusResponse {
   data: {
     invoice_id: string
-    status: 'unpaid' | 'paid' | 'overdue' | 'cancelled'
+    status: InvoiceStatus
     paid_at: string | null
     payment_gateway: string | null
   }

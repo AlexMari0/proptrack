@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Contract;
+use App\Models\Property;
 use App\Models\User;
 
 class ContractPolicy
@@ -12,33 +13,33 @@ class ContractPolicy
         return $user->hasRole('owner') || $user->hasRole('admin') || $user->hasRole('tenant');
     }
 
+    /** Visibility is defined once, in Contract::visibleTo(). */
     public function view(User $user, Contract $contract): bool
     {
-        if ($user->hasRole('owner') || $user->hasRole('admin')) {
+        return Contract::visibleTo($user)->whereKey($contract->getKey())->exists();
+    }
+
+    /**
+     * Owners create contracts only on their own properties; admins on any.
+     */
+    public function create(User $user, ?Property $property = null): bool
+    {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
-        if ($user->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $user->email)->first();
-            return $tenant && $contract->tenant_id === $tenant->id;
-        }
-
-        return false;
-    }
-
-    public function create(User $user): bool
-    {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasRole('owner')
+            && ($property === null || $property->owner_id === $user->id);
     }
 
     public function update(User $user, Contract $contract): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasAnyRole(['owner', 'admin']) && $this->view($user, $contract);
     }
 
     public function terminate(User $user, Contract $contract): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('admin');
+        return $user->hasAnyRole(['owner', 'admin']) && $this->view($user, $contract);
     }
 
     public function delete(User $user, Contract $contract): bool

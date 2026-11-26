@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import type { InvoiceStatus } from '@/types/invoice'
+import { invoiceStatusLabel } from '@/utils/invoiceStatus'
 
-const props = defineProps<{
+defineProps<{
   status: InvoiceStatus
   size?: 'sm' | 'md'
 }>()
-
-const config: Record<InvoiceStatus, { label: string; cls: string }> = {
-  unpaid:    { label: 'Unpaid',    cls: 'status--unpaid' },
-  paid:      { label: 'Paid',      cls: 'status--paid' },
-  overdue:   { label: 'Overdue',   cls: 'status--overdue' },
-  cancelled: { label: 'Cancelled', cls: 'status--cancelled' },
-}
 </script>
 
 <template>
-  <span :class="['payment-status', config[status].cls, size === 'sm' ? 'payment-status--sm' : '']">
+  <span :class="['payment-status', `status--${status}`, size === 'sm' ? 'payment-status--sm' : '']">
     <span class="payment-status__dot" />
-    {{ config[status].label }}
+    {{ invoiceStatusLabel(status) }}
   </span>
 </template>
 

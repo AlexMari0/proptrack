@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Invoice;
-use App\Services\InvoiceService;
+use App\Documents\Documents;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,12 +22,11 @@ class GenerateInvoicePdfJob implements ShouldQueue
     {
     }
 
-    public function handle(InvoiceService $invoiceService): void
+    /** Pre-render the PDF so the first download is instant. */
+    public function handle(Documents $documents): void
     {
-        $path = "invoices/invoice-{$this->invoice->id}.pdf";
-
         try {
-            $invoiceService->generatePdf($this->invoice, $path);
+            $documents->invoice($this->invoice);
             Log::info("Invoice PDF generated: {$this->invoice->invoice_number}");
         } catch (\Throwable $e) {
             Log::error("Failed to generate invoice PDF: {$this->invoice->invoice_number}", [

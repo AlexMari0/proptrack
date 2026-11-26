@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Documents\Documents;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
-use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoiceService)
-    {
-    }
-
     /**
      * GET /api/v1/invoices
      * Supports ?status=, ?property_id=, ?month= (YYYY-MM), ?tenant_id=
@@ -24,19 +20,12 @@ class InvoiceController extends Controller
     {
         $this->authorize('viewAny', Invoice::class);
 
-        $query = Invoice::with(['tenant', 'property', 'contract'])->latest();
-
-        if ($request->user()->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $request->user()->email)->first();
-            if ($tenant) {
-                $query->where('tenant_id', $tenant->id);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
+        $query = Invoice::visibleTo($request->user())
+            ->with(['tenant', 'property', 'contract'])
+            ->latest();
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->withEffectiveStatus($request->string('status'));
         }
 
         if ($request->filled('property_id')) {
@@ -112,7 +101,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $pdfPath = $this->invoiceService->getOrGeneratePdf($invoice);
+        $pdfPath = app(Documents::class)->invoice($invoice);
 
         return response()->download(
             $pdfPath,

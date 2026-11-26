@@ -162,6 +162,7 @@ import { defineComponent, ref, computed, watch, onMounted } from 'vue'
 import { useReport } from '@/composables/useReport'
 import { useProperty } from '@/composables/useProperty'
 import { invoiceService } from '@/services/invoiceService'
+import { isPaid } from '@/utils/invoiceStatus'
 import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -217,7 +218,7 @@ export default defineComponent({
         const monthIndex = parseInt(inv.billing_month.split('-')[1], 10) - 1
         if (monthIndex >= 0 && monthIndex < 12) {
           invoicedSeries[monthIndex] += inv.amount
-          if (inv.status === 'paid') collectedSeries[monthIndex] += inv.amount
+          if (isPaid(inv.status)) collectedSeries[monthIndex] += inv.amount
         }
       })
       return {

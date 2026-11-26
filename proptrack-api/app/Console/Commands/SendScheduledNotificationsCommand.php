@@ -33,11 +33,11 @@ class SendScheduledNotificationsCommand extends Command
         $this->info('Starting scheduled notifications dispatch...');
 
         // 1. Invoices due in exactly 3 days
-        $dueDateTarget = today()->addDays(3)->toDateString();
+        $dueDateTarget = Invoice::billingToday()->addDays(3)->toDateString();
         $this->info("Checking for unpaid invoices due on: {$dueDateTarget}");
 
         $invoices = Invoice::with(['tenant', 'property'])
-            ->where('status', 'unpaid')
+            ->outstanding()
             ->whereDate('due_date', $dueDateTarget)
             ->get();
 

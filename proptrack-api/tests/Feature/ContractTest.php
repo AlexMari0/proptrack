@@ -20,8 +20,13 @@ beforeEach(function () {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/** The owner of every property made by contractMakeProperty() (owners only see their own). */
 function contractOwner(): User
 {
+    if ($existing = User::role('owner')->orderBy('id')->first()) {
+        return $existing;
+    }
+
     $user = User::factory()->create();
     $user->assignRole('owner');
     return $user;
@@ -55,8 +60,7 @@ function contractMakeTenant(array $overrides = []): Tenant
 
 function contractMakeProperty(array $overrides = []): Property
 {
-    $propertyOwner = User::factory()->create();
-    $propertyOwner->assignRole('owner');
+    $propertyOwner = contractOwner();
 
     return Property::create(array_merge([
         'name'          => 'Kos Harmoni ' . fake()->unique()->numberBetween(1, 9999),
@@ -106,7 +110,7 @@ test('unauthenticated user cannot access contracts', function () {
 test('tenant role can list own contracts and gets filtered results', function () {
     Bus::fake();
     $tenantUser = contractTenantUser();
-    $tenant = contractMakeTenant(['email' => $tenantUser->email]);
+    $tenant = contractMakeTenant(['email' => $tenantUser->email, 'user_id' => $tenantUser->id]);
     $property = contractMakeProperty();
     $contract1 = makeContract($tenant->id, $property->id);
 

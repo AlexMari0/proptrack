@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Documents\Documents;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreContractRequest;
 use App\Http\Resources\ContractResource;
@@ -24,16 +25,9 @@ class ContractController extends Controller
     {
         $this->authorize('viewAny', Contract::class);
 
-        $query = Contract::with(['tenant', 'property'])->latest();
-
-        if ($request->user()->hasRole('tenant')) {
-            $tenant = \App\Models\Tenant::where('email', $request->user()->email)->first();
-            if ($tenant) {
-                $query->where('tenant_id', $tenant->id);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
+        $query = Contract::visibleTo($request->user())
+            ->with(['tenant', 'property'])
+            ->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -136,7 +130,7 @@ class ContractController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $pdfPath = $this->contractService->getOrGeneratePdf($contract);
+        $pdfPath = app(Documents::class)->contract($contract);
 
         return response()->download(
             $pdfPath,

@@ -70,6 +70,7 @@ function broadcastingTenantUser()
 function broadcastingMakeTenant(User $user)
 {
     return Tenant::create([
+        'user_id'                 => $user->id,
         'name'                    => $user->name,
         'email'                   => $user->email,
         'phone'                   => '081234567890',
@@ -215,7 +216,7 @@ test('RBAC authorizations for invoice private channel', function () {
     $contract = broadcastingMakeContract($tenant1, $property);
     $invoice = broadcastingMakeInvoice($contract);
 
-    // 1. Admin & Agent can access
+    // 1. Admin can access; agents cannot (same as InvoicePolicy: agents have no invoice access)
     Sanctum::actingAs(broadcastingAdmin(), ['*']);
     $this->postJson('/broadcasting/auth', [
             'channel_name' => "private-invoice.{$invoice->id}",
@@ -228,7 +229,7 @@ test('RBAC authorizations for invoice private channel', function () {
             'channel_name' => "private-invoice.{$invoice->id}",
             'socket_id'    => '1234.1234',
         ])
-        ->assertStatus(200);
+        ->assertStatus(403);
 
     // 2. Owner of property can access
     Sanctum::actingAs($owner, ['*']);
@@ -305,10 +306,8 @@ test('PaymentConfirmed event is broadcasted on payment success', function () {
     $contract = broadcastingMakeContract($tenant, $property);
     $invoice = broadcastingMakeInvoice($contract);
 
-    $service = new \App\Services\PaymentService();
-    
-    // We mark payment as success, which should fire the PaymentConfirmed broadcast event
-    $service->handlePaymentSuccess($invoice->invoice_number, 'midtrans');
+    // Settling the payment should fire the PaymentConfirmed broadcast event
+    $invoice->markPaid('midtrans');
 
     Event::assertDispatched(PaymentConfirmed::class, function ($event) use ($invoice) {
         return (string) $event->invoice['id'] === (string) $invoice->id 

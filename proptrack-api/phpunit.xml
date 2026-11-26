@@ -32,5 +32,11 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Never use real gateway credentials from .env in tests. -->
+        <env name="FONNTE_TOKEN" value="test-fonnte-token"/>
+        <env name="MIDTRANS_SERVER_KEY" value="test-midtrans-server-key"/>
+        <env name="MIDTRANS_CLIENT_KEY" value="test-midtrans-client-key"/>
+        <env name="MIDTRANS_IS_PRODUCTION" value="false"/>
+        <env name="MIDTRANS_SIMULATE" value="false"/>
     </php>
 </phpunit>
