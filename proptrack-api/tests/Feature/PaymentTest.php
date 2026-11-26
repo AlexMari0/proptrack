@@ -23,8 +23,13 @@ beforeEach(function () {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/** The owner of every property made by paymentMakeProperty() (owners only see their own). */
 function paymentOwner(): User
 {
+    if ($existing = User::role('owner')->orderBy('id')->first()) {
+        return $existing;
+    }
+
     $user = User::factory()->create();
     $user->assignRole('owner');
     return $user;
@@ -51,8 +56,7 @@ function paymentMakeTenant(): Tenant
 
 function paymentMakeProperty(): Property
 {
-    $owner = User::factory()->create();
-    $owner->assignRole('owner');
+    $owner = paymentOwner();
 
     return Property::create([
         'name'          => 'Kos Test ' . fake()->unique()->numberBetween(1, 9999),

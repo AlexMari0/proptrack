@@ -12,21 +12,14 @@ class InvoicePolicy
         return $user->hasAnyRole(['owner', 'admin', 'tenant']);
     }
 
+    /** Visibility is defined once, in Invoice::visibleTo(). */
     public function view(User $user, Invoice $invoice): bool
     {
-        if ($user->hasAnyRole(['owner', 'admin'])) {
-            return true;
-        }
-
-        if ($user->hasRole('tenant')) {
-            return $invoice->tenant?->user_id === $user->id;
-        }
-
-        return false;
+        return Invoice::visibleTo($user)->whereKey($invoice->getKey())->exists();
     }
 
     public function send(User $user, Invoice $invoice): bool
     {
-        return $user->hasAnyRole(['owner', 'admin']);
+        return $user->hasAnyRole(['owner', 'admin']) && $this->view($user, $invoice);
     }
 }

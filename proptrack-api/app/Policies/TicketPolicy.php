@@ -20,19 +20,8 @@ class TicketPolicy
      */
     public function view(User $user, Ticket $ticket): bool
     {
-        if ($user->hasRole('admin') || $user->hasRole('agent')) {
-            return true;
-        }
-
-        if ($user->hasRole('owner')) {
-            return $ticket->property->owner_id === $user->id;
-        }
-
-        if ($user->hasRole('tenant')) {
-            return $ticket->submitted_by_id === $user->id;
-        }
-
-        return false;
+        // Visibility is defined once, in Ticket::visibleTo().
+        return Ticket::visibleTo($user)->whereKey($ticket->getKey())->exists();
     }
 
     /**

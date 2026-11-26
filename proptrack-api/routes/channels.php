@@ -17,46 +17,17 @@ Broadcast::channel('user.{id}', function ($user, $id) {
     return (string) $user->id === (string) $id;
 }, ['guards' => ['sanctum']]);
 
-// Private ticket channel for live comment threads and status changes
+// Private ticket channel for live comment threads and status changes.
+// Channel access is the same rule as viewing the record (TicketPolicy / InvoicePolicy).
 Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) {
-    $ticket = \App\Models\Ticket::with('property')->find($ticketId);
-    if (!$ticket) {
-        return false;
-    }
+    $ticket = \App\Models\Ticket::find($ticketId);
 
-    if ($user->hasRole('admin') || $user->hasRole('agent')) {
-        return true;
-    }
-
-    if ($user->hasRole('owner')) {
-        return $ticket->property->owner_id === $user->id;
-    }
-
-    if ($user->hasRole('tenant')) {
-        return $ticket->submitted_by_id === $user->id;
-    }
-
-    return false;
+    return $ticket !== null && $user->can('view', $ticket);
 }, ['guards' => ['sanctum']]);
 
 // Private invoice channel for live checkout payment confirmations
 Broadcast::channel('invoice.{invoiceId}', function ($user, $invoiceId) {
-    $invoice = \App\Models\Invoice::with(['tenant', 'property'])->find($invoiceId);
-    if (!$invoice) {
-        return false;
-    }
+    $invoice = \App\Models\Invoice::find($invoiceId);
 
-    if ($user->hasRole('admin') || $user->hasRole('agent')) {
-        return true;
-    }
-
-    if ($user->hasRole('owner')) {
-        return $invoice->property->owner_id === $user->id;
-    }
-
-    if ($user->hasRole('tenant')) {
-        return $invoice->tenant?->user_id === $user->id;
-    }
-
-    return false;
+    return $invoice !== null && $user->can('view', $invoice);
 }, ['guards' => ['sanctum']]);

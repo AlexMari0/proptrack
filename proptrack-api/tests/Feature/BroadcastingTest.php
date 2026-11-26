@@ -216,7 +216,7 @@ test('RBAC authorizations for invoice private channel', function () {
     $contract = broadcastingMakeContract($tenant1, $property);
     $invoice = broadcastingMakeInvoice($contract);
 
-    // 1. Admin & Agent can access
+    // 1. Admin can access; agents cannot (same as InvoicePolicy: agents have no invoice access)
     Sanctum::actingAs(broadcastingAdmin(), ['*']);
     $this->postJson('/broadcasting/auth', [
             'channel_name' => "private-invoice.{$invoice->id}",
@@ -229,7 +229,7 @@ test('RBAC authorizations for invoice private channel', function () {
             'channel_name' => "private-invoice.{$invoice->id}",
             'socket_id'    => '1234.1234',
         ])
-        ->assertStatus(200);
+        ->assertStatus(403);
 
     // 2. Owner of property can access
     Sanctum::actingAs($owner, ['*']);

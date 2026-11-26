@@ -22,8 +22,13 @@ beforeEach(function () {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/** The owner of every property made by invoiceMakeProperty() (owners only see their own). */
 function invoiceOwner(): User
 {
+    if ($existing = User::role('owner')->orderBy('id')->first()) {
+        return $existing;
+    }
+
     $user = User::factory()->create();
     $user->assignRole('owner');
     return $user;
@@ -64,8 +69,7 @@ function invoiceMakeTenant(): Tenant
 
 function invoiceMakeProperty(): Property
 {
-    $propertyOwner = User::factory()->create();
-    $propertyOwner->assignRole('owner');
+    $propertyOwner = invoiceOwner();
 
     return Property::create([
         'name'          => 'Kos Harmoni ' . fake()->unique()->numberBetween(1, 9999),

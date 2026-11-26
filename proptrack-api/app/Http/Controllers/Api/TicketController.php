@@ -25,16 +25,7 @@ class TicketController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Ticket::with(['property', 'submittedBy', 'assignedTo']);
-
-        // Scope query based on role
-        if ($user->hasRole('owner')) {
-            $query->whereHas('property', function ($q) use ($user) {
-                $q->where('owner_id', $user->id);
-            });
-        } elseif ($user->hasRole('tenant')) {
-            $query->where('submitted_by_id', $user->id);
-        } // Admin/Agent can see all, so no extra scope applied
+        $query = Ticket::visibleTo($user)->with(['property', 'submittedBy', 'assignedTo']);
 
         // Apply filters
         if ($request->filled('status')) {

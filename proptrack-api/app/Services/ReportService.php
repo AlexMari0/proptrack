@@ -18,16 +18,11 @@ class ReportService
      */
     public function getFinancialSummary(User $user, int $year, ?int $month = null): array
     {
-        $invoicesQuery = Invoice::with('property')->notCancelled();
-
-        // Scope by user roles
-        if (!$user->hasRole('admin') && $user->hasRole('owner')) {
-            $invoicesQuery->whereHas('property', function ($query) use ($user) {
-                $query->where('owner_id', $user->id);
-            });
-        } elseif (!$user->hasRole('admin')) {
+        if (! $user->hasAnyRole(['admin', 'owner'])) {
             $this->denyAccess();
         }
+
+        $invoicesQuery = Invoice::visibleTo($user)->with('property')->notCancelled();
 
         $period = $this->applyPeriodFilter($invoicesQuery, $year, $month);
         $invoices = $invoicesQuery->get();

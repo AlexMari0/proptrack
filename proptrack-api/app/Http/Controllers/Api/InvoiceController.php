@@ -24,11 +24,9 @@ class InvoiceController extends Controller
     {
         $this->authorize('viewAny', Invoice::class);
 
-        $query = Invoice::with(['tenant', 'property', 'contract'])->latest();
-
-        if ($request->user()->hasRole('tenant')) {
-            $query->whereRelation('tenant', 'user_id', $request->user()->id);
-        }
+        $query = Invoice::visibleTo($request->user())
+            ->with(['tenant', 'property', 'contract'])
+            ->latest();
 
         if ($request->filled('status')) {
             $query->withEffectiveStatus($request->string('status'));

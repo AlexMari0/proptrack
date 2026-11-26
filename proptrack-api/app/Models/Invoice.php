@@ -262,4 +262,28 @@ class Invoice extends Model
 
         return "INV-{$year}-{$sequence}";
     }
+
+    // ─── Visibility ───────────────────────────────────────────────────────────
+
+    /**
+     * Invoices the user may see. The one rule used by the policy, list
+     * endpoints, broadcast channels and reports:
+     * admins see all, owners see their own properties', tenants see their own. Agents see none.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        if ($user->hasRole('owner')) {
+            return $query->whereRelation('property', 'owner_id', $user->id);
+        }
+
+        if ($user->hasRole('tenant')) {
+            return $query->whereRelation('tenant', 'user_id', $user->id);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
 }

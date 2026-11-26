@@ -24,11 +24,9 @@ class ContractController extends Controller
     {
         $this->authorize('viewAny', Contract::class);
 
-        $query = Contract::with(['tenant', 'property'])->latest();
-
-        if ($request->user()->hasRole('tenant')) {
-            $query->whereRelation('tenant', 'user_id', $request->user()->id);
-        }
+        $query = Contract::visibleTo($request->user())
+            ->with(['tenant', 'property'])
+            ->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
