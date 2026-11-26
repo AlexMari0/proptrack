@@ -6,6 +6,7 @@ use App\Enums\InvoiceStatus;
 use App\Events\InvoiceIssued;
 use App\Events\InvoicePaid;
 use App\Exceptions\InvalidInvoiceTransition;
+use App\Numbering\DocumentNumbers;
 use App\Traits\Auditable;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -99,7 +100,7 @@ class Invoice extends Model
                 'contract_id'    => $contract->id,
                 'tenant_id'      => $contract->tenant_id,
                 'property_id'    => $contract->property_id,
-                'invoice_number' => static::nextInvoiceNumber(),
+                'invoice_number' => app(DocumentNumbers::class)->next(DocumentNumbers::INVOICE),
                 'status'         => InvoiceStatus::Unpaid->value,
                 'amount'         => $contract->monthly_rent,
                 'billing_month'  => $billingMonth,
@@ -247,20 +248,6 @@ class Invoice extends Model
         $date = Carbon::createFromFormat('Y-m-d', "{$billingMonth}-01")->startOfDay();
 
         return $date->setDay(min($billingDay, $date->daysInMonth));
-    }
-
-    /**
-     * INV-YYYY-NNNN. Moved as-is from InvoiceService; count-based numbering
-     * can collide after a delete (tracked separately).
-     */
-    private static function nextInvoiceNumber(): string
-    {
-        $year = now()->year;
-
-        $count = static::whereYear('created_at', $year)->lockForUpdate()->count();
-        $sequence = str_pad($count + 1, 4, '0', STR_PAD_LEFT);
-
-        return "INV-{$year}-{$sequence}";
     }
 
     // ─── Visibility ───────────────────────────────────────────────────────────

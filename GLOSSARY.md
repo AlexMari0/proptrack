@@ -60,3 +60,8 @@ _Avoid_: Callback, webhook success
 
 **Payable**:
 An Invoice a Tenant can pay right now. Today every Outstanding Invoice is Payable.
+
+## Documents
+
+**Document number**:
+The human-facing number on an Invoice (INV-2026-0001) or a Ticket (TKT-2026-0001). It restarts each year and is never reused, even if the document is deleted.

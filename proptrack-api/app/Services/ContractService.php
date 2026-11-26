@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Jobs\GenerateContractPdfJob;
 use App\Models\Contract;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ContractService
@@ -75,44 +74,6 @@ class ContractService
         ]);
 
         return $contract->fresh(['tenant', 'property']);
-    }
-
-    /**
-     * Get or generate the PDF path for a contract.
-     * Returns the absolute path to the PDF file.
-     */
-    public function getOrGeneratePdf(Contract $contract): string
-    {
-        $path = "contracts/contract-{$contract->id}.pdf";
-
-        if (! Storage::disk('local')->exists($path)) {
-            // Generate synchronously for immediate download
-            $this->generatePdf($contract, $path);
-        }
-
-        return Storage::disk('local')->path($path);
-    }
-
-    /**
-     * Internal: generate the PDF and save to storage.
-     */
-    public function generatePdf(Contract $contract, string $storagePath): void
-    {
-        $contract->loadMissing(['tenant', 'property']);
-
-        $pdf = \Spatie\LaravelPdf\Facades\Pdf::view('pdf.contract', [
-            'contract' => $contract,
-        ])->landscape(false);
-
-        $absolutePath = Storage::disk('local')->path($storagePath);
-
-        // Ensure directory exists
-        $dir = dirname($absolutePath);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $pdf->save($absolutePath);
     }
 
     // ─── Private Guards ────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\TicketOpened;
+use App\Numbering\DocumentNumbers;
 use App\Events\TicketStatusChanged;
 use App\Models\Contract;
 use App\Models\Ticket;
@@ -40,21 +41,7 @@ class TicketService
         }
 
         $ticket = DB::transaction(function () use ($user, $data) {
-            $year = now()->year;
-
-            // Generate unique sequential ticket number TKT-YYYY-XXXX
-            // Using lockForUpdate to ensure thread-safety
-            $lastTicket = Ticket::whereYear('created_at', $year)
-                ->lockForUpdate()
-                ->orderBy('ticket_number', 'desc')
-                ->first();
-
-            $nextSequence = 1;
-            if ($lastTicket && preg_match('/TKT-\d{4}-(\d+)/', $lastTicket->ticket_number, $matches)) {
-                $nextSequence = (int)$matches[1] + 1;
-            }
-
-            $ticketNumber = sprintf('TKT-%d-%04d', $year, $nextSequence);
+            $ticketNumber = app(DocumentNumbers::class)->next(DocumentNumbers::TICKET);
 
             return Ticket::create([
                 'ticket_number'   => $ticketNumber,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Documents\Documents;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreContractRequest;
 use App\Http\Resources\ContractResource;
@@ -129,7 +130,7 @@ class ContractController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $pdfPath = $this->contractService->getOrGeneratePdf($contract);
+        $pdfPath = app(Documents::class)->contract($contract);
 
         return response()->download(
             $pdfPath,

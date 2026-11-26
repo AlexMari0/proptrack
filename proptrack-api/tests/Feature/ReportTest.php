@@ -238,7 +238,7 @@ test('export returns a binary PDF file response', function () {
         ],
     ];
     $hash = md5(json_encode($summary));
-    $path = "reports/report-{$hash}.pdf";
+    $path = "reports/report-{$hash}-v1.pdf"; // Documents::financialReport() cache name
     \Illuminate\Support\Facades\Storage::disk('local')->put($path, '%PDF-1.4 dummy pdf content');
 
     $response = $this->actingAs($admin)

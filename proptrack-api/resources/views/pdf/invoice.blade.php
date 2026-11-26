@@ -69,8 +69,8 @@
     <div class="invoice-meta">
       <div class="invoice-label">Nomor Invoice</div>
       <div class="invoice-number">{{ $invoice->invoice_number }}</div>
-      <span class="status-badge status-{{ $invoice->status }}">
-        @switch($invoice->status)
+      <span class="status-badge status-{{ $invoice->effectiveStatus() }}">
+        @switch($invoice->effectiveStatus())
           @case('unpaid')     Belum Dibayar  @break
           @case('paid')       Lunas          @break
           @case('overdue')    Jatuh Tempo    @break

@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Documents\Documents;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
-use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoiceService)
-    {
-    }
-
     /**
      * GET /api/v1/invoices
      * Supports ?status=, ?property_id=, ?month= (YYYY-MM), ?tenant_id=
@@ -105,7 +101,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $pdfPath = $this->invoiceService->getOrGeneratePdf($invoice);
+        $pdfPath = app(Documents::class)->invoice($invoice);
 
         return response()->download(
             $pdfPath,

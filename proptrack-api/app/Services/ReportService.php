@@ -7,8 +7,6 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
-use Spatie\LaravelPdf\Facades\Pdf;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ReportService
@@ -96,40 +94,6 @@ class ReportService
             'collection_rate'   => $metrics['collection_rate'],
             'by_property'       => $byProperty,
         ];
-    }
-
-    /**
-     * Generate or retrieve report PDF path.
-     */
-    public function getOrGeneratePdf(array $data): string
-    {
-        $hash = md5(json_encode($data));
-        $path = "reports/report-{$hash}.pdf";
-
-        if (!Storage::disk('local')->exists($path)) {
-            $this->generatePdf($data, $path);
-        }
-
-        return Storage::disk('local')->path($path);
-    }
-
-    /**
-     * Generate a PDF report and write it to local storage.
-     */
-    public function generatePdf(array $data, string $storagePath): void
-    {
-        $pdf = Pdf::view('pdf.financial-report', [
-            'data' => $data,
-        ]);
-
-        $absolutePath = Storage::disk('local')->path($storagePath);
-        $dir = dirname($absolutePath);
-
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $pdf->save($absolutePath);
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
