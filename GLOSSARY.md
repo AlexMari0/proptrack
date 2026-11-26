@@ -4,6 +4,19 @@ Property management for owners and their agents: properties are let to tenants u
 
 ## People
 
+**Owner**:
+A person who owns Properties. An Owner sees and manages only their own Portfolio.
+_Avoid_: Landlord, pemilik (in code)
+
+**Portfolio**:
+The Properties one Owner owns, together with their Contracts, Invoices and Tickets.
+
+**Agent**:
+Staff who handle Tickets and property listings for every Owner. Agents do not see billing (Contracts or Invoices).
+
+**Admin**:
+Staff who see and manage everything, across all Portfolios.
+
 **Tenant**:
 A person who rents a Property under a Contract: the one who is billed and who reports maintenance issues.
 _Avoid_: Renter, resident, penyewa (in code)
